@@ -26,9 +26,12 @@ def run_backend(port: int = 8000):
 
 
 def run_frontend():
+    # On Windows, we must use shell=True to find and run batch files/scripts like npm.
+    use_shell = sys.platform == "win32"
     return subprocess.Popen(
         ["npm", "run", "dev"],
         cwd=ROOT / "frontend",
+        shell=use_shell,
     )
 
 
