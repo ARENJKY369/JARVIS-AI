@@ -89,6 +89,13 @@ def main() -> int:
             ("GET", "/api/v1/ai/health"),
             ("POST", "/api/v1/voice", {"action": "synthesize", "text": "Good evening, sir."}),
             ("GET", "/api/v1/voice/status"),
+            ("GET", "/api/v1/voice/demo"),
+            ("POST", "/api/v1/voice/speak", {"text": "JARVIS online."}),
+            ("POST", "/api/v1/voice/command", {"text": "Hello JARVIS", "speak": True}),
+            ("POST", "/api/v1/skills/execute", {"text": "ask chatgpt about quality", "dry_run": True}),
+            ("POST", "/api/v1/voice/command", {"text": "open youtube and calculate 1+1", "speak": False}),
+            ("GET", "/api/v1/skills"),
+            ("GET", "/console"),
         ]
 
         for method, path, *payload in endpoints:
@@ -108,16 +115,36 @@ def main() -> int:
         errors.append(f"API smoke test crashed: {e}")
         traceback.print_exc()
 
-    # 6. Final summary
-    print("\n[6/6] Final checks...")
+    # 6. Final summary + real audio verification
+    print("\n[6/6] Final checks + audible TTS verification...")
     try:
         # Re-test one advanced AI call
         client = TestClient(app)
         r = client.post("/api/v1/ai/chat", json={"message": "Run a full system diagnostic."})
         assert r.status_code == 200
         print("  ✓ Advanced AI chat functional")
+
+        # Ensure TTS is NOT the old silent stub
+        import base64
+        import wave
+        import io
+        import struct
+
+        r = client.post("/api/v1/voice/speak", json={"text": "Good evening, sir. JARVIS online."})
+        assert r.status_code == 200
+        payload = r.json()
+        raw = base64.b64decode(payload["audio_base64"])
+        assert len(raw) > 2000, "Audio too small — still a stub?"
+        with wave.open(io.BytesIO(raw), "rb") as wf:
+            frames = wf.readframes(wf.getnframes())
+            samples = struct.unpack("<" + "h" * (len(frames) // 2), frames)
+            peak = max(abs(s) for s in samples)
+        assert peak > 500, f"Audio is silent (peak={peak})"
+        print(f"  ✓ Real audible TTS (peak amplitude={peak}, {payload['duration_ms']:.0f}ms)")
+        print(f"  ✓ Engine: {payload.get('engine')}")
     except Exception as e:
-        errors.append(f"Advanced AI failed: {e}")
+        errors.append(f"Advanced AI / TTS verification failed: {e}")
+        traceback.print_exc()
 
     print("\n" + "=" * 60)
     if errors:
@@ -128,6 +155,8 @@ def main() -> int:
         return 1
     else:
         print("✅ ALL VALIDATIONS PASSED — PRODUCTION READY")
+        print("   Voice console: http://127.0.0.1:8000/console")
+        print("   Quality gate:  python scripts/quality_gate.py")
         print("=" * 60)
         return 0
 

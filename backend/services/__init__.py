@@ -12,5 +12,11 @@ All services are:
 """
 
 from .ai_service import AIService, get_ai_service
+from .voice_service import VoiceService, get_voice_service
 
-__all__ = ["AIService", "get_ai_service"]
+__all__ = [
+    "AIService",
+    "get_ai_service",
+    "VoiceService",
+    "get_voice_service",
+]

@@ -1,0 +1,35 @@
+{
+  "contacts": [
+    {
+      "name": "Mom",
+      "email": "mom@example.com",
+      "phone": null,
+      "aliases": [
+        "mother",
+        "mum",
+        "mama"
+      ],
+      "notes": "Set email via: add contact Mom email mom@example.com"
+    },
+    {
+      "name": "Dad",
+      "email": null,
+      "phone": null,
+      "aliases": [
+        "father",
+        "papa"
+      ],
+      "notes": ""
+    },
+    {
+      "name": "Me",
+      "email": null,
+      "phone": null,
+      "aliases": [
+        "myself",
+        "self"
+      ],
+      "notes": "Your own address for test emails"
+    }
+  ]
+}

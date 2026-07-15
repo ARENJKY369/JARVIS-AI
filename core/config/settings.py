@@ -162,9 +162,17 @@ class VoiceConfig(BaseSettings):
         default="base",
         description="faster-whisper model size (tiny, base, small, medium, large).",
     )
+    tts_engine: Literal["formant", "piper", "auto"] = Field(
+        default="auto",
+        description="TTS backend: formant (always), piper (if installed), auto (prefer piper).",
+    )
     tts_model: str = Field(
-        default="en_US-lessac-medium",
-        description="Piper voice model (must be downloaded).",
+        default="en_GB-alan-medium",
+        description="Piper voice model name (British male recommended for JARVIS).",
+    )
+    piper_model_path: Path | None = Field(
+        default=None,
+        description="Optional absolute path to a Piper .onnx model file.",
     )
     sample_rate: int = Field(default=22050, ge=8000, le=48000)
     language: str = Field(default="en")
@@ -174,6 +182,13 @@ class VoiceConfig(BaseSettings):
         ge=0.001,
         le=1.0,
         description="VAD energy threshold for voice activity detection.",
+    )
+    speaking_rate: float = Field(default=0.92, ge=0.5, le=2.0)
+    pitch_hz: float = Field(
+        default=98.0,
+        ge=70.0,
+        le=200.0,
+        description="Base F0 for formant JARVIS voice (lower = deeper butler tone).",
     )
 
 
@@ -260,6 +275,41 @@ class UIConfig(BaseSettings):
     default_voice: str = Field(default="jarvis")
 
 
+class EmailConfig(BaseSettings):
+    """SMTP email configuration for the email skill."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="JARVIS_EMAIL_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    enabled: bool = Field(
+        default=False,
+        description="Master switch for SMTP sending (drafts always work).",
+    )
+    smtp_host: str = Field(default="smtp.gmail.com")
+    smtp_port: int = Field(default=587, ge=1, le=65535)
+    smtp_user: str = Field(default="")
+    smtp_password: str = Field(default="", description="SMTP password or app password (never logged).")
+    from_address: str = Field(default="")
+    use_tls: bool = Field(default=True)
+    # Safety: never send without explicit confirmation unless this is True
+    require_confirmation: bool = Field(default=True)
+    # Default mode when user says "send email" without confirm
+    default_mode: Literal["draft", "send"] = Field(default="draft")
+
+    def is_configured(self) -> bool:
+        return bool(self.enabled and self.smtp_host and self.smtp_user and self.smtp_password)
+
+    def __repr__(self) -> str:
+        return (
+            f"<EmailConfig(enabled={self.enabled}, host={self.smtp_host!r}, "
+            f"user={'***' if self.smtp_user else ''!r}, configured={self.is_configured()})>"
+        )
+
+
 class Settings(BaseSettings):
     """
     Root JARVIS OS Configuration.
@@ -303,6 +353,7 @@ class Settings(BaseSettings):
     security: SecurityConfig = Field(default_factory=SecurityConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     ui: UIConfig = Field(default_factory=UIConfig)
+    email: EmailConfig = Field(default_factory=EmailConfig)
 
     @model_validator(mode="after")
     def _ensure_directories(self) -> Settings:
@@ -413,4 +464,5 @@ __all__ = [
     "SecurityConfig",
     "LoggingConfig",
     "UIConfig",
+    "EmailConfig",
 ]

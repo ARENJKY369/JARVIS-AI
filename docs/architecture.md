@@ -1,120 +1,146 @@
 # JARVIS OS Architecture
 
-**Version:** 1.0  
-**Last Updated:** 2026-07-14  
-**Status:** Foundation Complete (Core Module)
+**Version:** 2.0  
+**Last Updated:** 2026-07-15  
+**Status:** Core + Voice + Skills foundation
 
 ---
 
 ## 1. Guiding Principles
 
-1. **Offline-first** — All core intelligence runs locally.
-2. **Zero placeholders** — Every component is production-grade from day one.
-3. **Capability-based Security** — Default-deny + explicit user consent.
-4. **Clean Architecture** — Dependency rule: outer layers depend on inner.
-5. **Modularity** — Each major domain (voice, vision, automation) is independently testable.
+1. **Offline-first** — Core intelligence runs locally.
+2. **One command → one (or more) skills** — natural language drives actions.
+3. **Capability-based Security** — Default-deny + explicit consent.
+4. **Clean Architecture** — outer layers depend on inner.
+5. **Modularity** — voice, vision, skills independently testable.
 6. **SOLID + Type Safety** — Python 3.11+ with full type hints.
 
 ---
 
-## 2. High-Level Layers
+## 2. Cool system structure
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  Electron Desktop Shell (UI + Tray + IPC)                   │
-│  React + TypeScript Frontend                                │
-└────────────────────┬────────────────────────────────────────┘
-                     │ HTTP + WebSocket (localhost)
-┌────────────────────▼────────────────────────────────────────┐
-│  FastAPI Backend (app.main)                                 │
-│  • Routers (health, ai, voice, automation, system)          │
-│  • Services (AgentOrchestrator, MemoryService, etc.)        │
-│  • Dependency injection                                     │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-┌────────────────────▼────────────────────────────────────────┐
-│  Core Layer (immutable foundation)                          │
-│  • config (Settings)                                        │
-│  • security (PermissionManager, Sandbox, Audit, Crypto)     │
-│  • exceptions                                               │
-└────────────────────┬────────────────────────────────────────┘
-                     │
-┌────────────────────▼────────────────────────────────────────┐
-│  Domain Agents & Services                                   │
-│  memory • voice • vision • automation • plugins             │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  Electron Tray  ·  React HUD  ·  Voice Console (/console)    │
+│  Global hotkey · Arc-reactor UI · Waveforms                  │
+└────────────────────────────┬─────────────────────────────────┘
+                             │ HTTP / WebSocket (localhost)
+┌────────────────────────────▼─────────────────────────────────┐
+│  FastAPI Backend                                             │
+│  routers: health · ai · voice · skills · memory · system     │
+│  services: AI · Voice · Memory                               │
+└────────────────────────────┬─────────────────────────────────┘
+                             │
+┌────────────────────────────▼─────────────────────────────────┐
+│  Agents                                                      │
+│  Orchestrator: text → skill match → permissions → execute    │
+└────────────────────────────┬─────────────────────────────────┘
+                             │
+┌────────────────────────────▼─────────────────────────────────┐
+│  Skills (the hands)                                          │
+│  browser · apps · email* · media* · files* · calendar*       │
+└────────────────────────────┬─────────────────────────────────┘
+                             │
+┌────────────────────────────▼─────────────────────────────────┐
+│  Core                                                        │
+│  config · permissions · sandbox · audit · crypto             │
+└──────────────────────────────────────────────────────────────┘
+
+* = roadmap (see docs/ROADMAP.md)
+```
+
+### Repository layout
+
+```
+JARVIS-AI/
+├── agents/           # Orchestrator (command → skills)
+├── backend/          # FastAPI app, routers, services
+├── core/             # Config + security foundation
+├── skills/           # ★ One-command powers
+│   ├── base.py
+│   ├── registry.py
+│   ├── browser.py    # YouTube, Gmail, search, URL
+│   ├── apps.py       # Launch Chrome, VS Code, …
+│   └── system_info.py
+├── voice/            # Formant TTS + voice service
+├── frontend/public/  # Voice + skills console UI
+├── docs/
+│   ├── architecture.md
+│   ├── ROADMAP.md
+│   └── assets/       # Logos + sample WAVs
+├── tests/
+└── scripts/
 ```
 
 ---
 
-## 3. Core Module (Completed - v1.0)
+## 3. One-command data flow
 
-**Location:** `core/`
-
-### 3.1 Configuration (`core/config`)
-
-- `Settings`: Frozen Pydantic v2 root model
-- Nested configs: `AIConfig`, `VoiceConfig`, `SecurityConfig`, etc.
-- Environment: `JARVIS_*` prefix + `.env`
-- Strong path safety + directory auto-creation
-- Offline-first validation (Ollama must be localhost)
-
-### 3.2 Security (`core/security`)
-
-- **Permission System**: Capability-based (`Permission` enum)
-- **PermissionManager**: Runtime grants, context managers, decorators
-- **Sandbox**: Whitelisted subprocess execution with timeout + output limits
-- **Crypto**: AES-GCM, Ed25519/RSA keygen, password hashing (Argon2 / PBKDF2)
-- **AuditLogger**: Structured events + ring buffer + file sink
-
-### 3.3 Exceptions
-
-- `JarvisError` base
-- Domain-specific: `SecurityError`, `PermissionDeniedError`, etc.
+```
+"Open YouTube"
+    → Console / Voice / POST /api/v1/skills/execute
+    → AgentOrchestrator.match()
+    → skills.browser.OpenYouTubeSkill
+    → Permission.AUTOMATION_BROWSER
+    → webbrowser.open("https://www.youtube.com")
+    → TTS: "Opening YouTube, sir."
+    → Audit log
+```
 
 ---
 
-## 4. Data Flow (Example: Voice Command)
+## 4. Voice stack
 
-1. Electron / Frontend → FastAPI `/voice/transcribe`
-2. Backend service calls `voice` module
-3. `voice` module requests `Permission.VOICE_LISTEN`
-4. PermissionManager + AuditLogger record action
-5. If allowed → Whisper inference (local)
-6. Result → LLM via Ollama (core AI)
-7. Optional: `automation` agent triggered
-8. All steps audited
+| Layer | Now | Next |
+|-------|-----|------|
+| TTS | `jarvis-formant` (pure Python, audible) | Piper neural (British male) |
+| STT | Web Speech API in console | faster-whisper local |
+| Commands | Intent + skill router | LLM tool-calling |
+| UI | `/console` Iron Man HUD | Full React + Electron |
 
 ---
 
-## 5. Security Model
+## 5. Security model
 
-- Default: **Deny all**
-- All privileged actions require explicit grant (UI or voice confirmation)
-- Sandboxed execution for every external action
-- No network access unless explicitly enabled
-- Full tamper-evident audit trail
-- Secrets never logged
-
----
-
-## 6. Current Module Status
-
-| Module           | Status          | Tests | Security Review | Docs |
-|------------------|-----------------|-------|------------------|------|
-| **Core**         | ✅ COMPLETE     | Pass  | Pass             | Full |
-| Backend Skeleton | In Progress     | -     | -                | -    |
-| Frontend         | Not Started     | -     | -                | -    |
-| ...              | ...             | ...   | ...              | ...  |
+- Default **deny**
+- Each skill lists required `Permission`s
+- Development auto-grants browser/app skills for UX
+- Production: explicit grants + confirm for send/delete/shutdown
+- Full audit trail
 
 ---
 
-## 7. Next Steps (Master Loop)
+## 6. Module status
 
-1. Backend Core (FastAPI + routers + DI)
-2. Memory Layer
-3. AI Service + Ollama integration
-4. Voice pipeline
-5. etc.
+| Module | Status | Notes |
+|--------|--------|-------|
+| Core | ✅ | config, security, sandbox |
+| Backend API | ✅ | health, ai, voice, skills, memory |
+| Voice TTS | ✅ | formant engine (real audio) |
+| Voice Console | ✅ | `/console` |
+| Skills framework | ✅ | registry + orchestrator |
+| Browser skills | ✅ | YouTube, Gmail, search, URL |
+| Apps launch | ✅ | whitelist map |
+| Email send | 🔜 | SMTP / Gmail OAuth |
+| Piper voice | 🔜 | natural JARVIS tone |
+| Electron shell | 🔜 | tray + hotkey |
+| Vision | 🔜 | screenshot + OCR |
 
-See `README.md` for current development status.
+Full checklist: **[docs/ROADMAP.md](./ROADMAP.md)**
+
+---
+
+## 7. Branding
+
+| Asset | Path |
+|-------|------|
+| Logo | `docs/assets/jarvis_logo.png` |
+| Dark logo | `docs/assets/jarvis_logo_dark.png` |
+| Icon | `docs/assets/jarvis_icon.png` |
+| Welcome audio | `docs/assets/jarvis_welcome.wav` |
+
+Colors: cyan `#00E5FF` · gold `#C9A227` · void `#05080F`
+
+---
+
+*At your service, sir.*
