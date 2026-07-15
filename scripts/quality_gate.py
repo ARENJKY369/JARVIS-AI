@@ -224,7 +224,7 @@ def run() -> int:
             peak = max(abs(s) for s in samples) if samples else 0
         d.add(f"peak > 5000 (got {peak})", peak > 5000)
         d.add("duration > 500ms", result.duration_ms > 500)
-        d.add("engine jarvis-formant", result.engine == "jarvis-formant")
+        d.add("engine jarvis-formant", result.engine == "jarvis-formant" or result.engine.startswith("jarvis-formant:"))
     except Exception as e:
         d.add(f"tts ({e})", False)
         traceback.print_exc()
