@@ -283,6 +283,22 @@ def create_app() -> FastAPI:
     except Exception as e:
         logger.warning(f"Voice console UI not mounted: {e}")
 
+    # Serve built React frontend in production (if present)
+    if not settings.debug:
+        try:
+            from fastapi.staticfiles import StaticFiles
+
+            frontend_dist = settings.base_dir / "frontend" / "dist"
+            if frontend_dist.exists():
+                app.mount(
+                    "/",
+                    StaticFiles(directory=str(frontend_dist), html=True),
+                    name="frontend",
+                )
+        except Exception as e:
+            logger.warning(f"Frontend dist not mounted: {e}")
+
+
     return app
 
 

@@ -3,6 +3,8 @@ JARVIS OS - Agents
 ==================
 
 High-level planners that turn natural language into skill executions.
+
+Also provides AgentOrchestrator as the central dispatcher for domain agents.
 """
 
 from .orchestrator import AgentOrchestrator, get_orchestrator
