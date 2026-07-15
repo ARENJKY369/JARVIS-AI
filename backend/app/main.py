@@ -248,6 +248,13 @@ def create_app() -> FastAPI:
             "offline": settings.is_offline_mode(),
         }
 
+    # Serve frontend static files in production
+    if not settings.debug:
+        from fastapi.staticfiles import StaticFiles
+        frontend_dist = settings.base_dir / "frontend" / "dist"
+        if frontend_dist.exists():
+            app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="frontend")
+
     return app
 
 
