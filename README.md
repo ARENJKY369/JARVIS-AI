@@ -86,7 +86,7 @@ See `docs/architecture.md` for deep technical details.
 | Vision         | OpenCV, pytesseract, easyocr (local) |
 | Automation     | Playwright, pyautogui, pynput |
 | Memory         | SQLite, chromadb / lancedb (local vector) |
-| Frontend       | React 18, TypeScript, Tailwind, Vite, shadcn/ui |
+| Frontend       | React 18, TypeScript, Tailwind CSS, Vite |
 | Desktop        | Electron 30+, electron-builder |
 | Testing        | pytest, vitest, playwright (e2e) |
 | Security       | pydantic-settings, cryptography, sandboxing |
@@ -110,20 +110,29 @@ cd JARVIS-AI
 # Python environment
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements.txt   # or use pyproject later
+pip install -r requirements.txt
 
-# Node setup
-cd frontend && npm install
-cd ../electron && npm install
-cd ..
+# Node setup — Frontend
+cd frontend && npm install && cd ..
+
+# Node setup — Electron (optional)
+cd electron && npm install && cd ..
+
+# Copy environment config
+cp .env.example .env
 ```
 
 ### 2. Start Components (Development Mode)
 
+**Option A: One-command dev launcher**
+```bash
+python scripts/dev.py
+```
+
+**Option B: Manual terminals**
 ```bash
 # Terminal 1: Backend
-cd backend
-uvicorn app.main:app --reload --port 8000
+python -m uvicorn backend.app.main:app --reload --port 8000
 
 # Terminal 2: Frontend dev server
 cd frontend
@@ -134,6 +143,8 @@ cd electron
 npm run start
 ```
 
+The frontend will be available at `http://localhost:5173` and proxies API calls to the backend at `http://127.0.0.1:8000`.
+
 ### 3. Run Full Validation (after changes)
 
 ```bash
@@ -141,6 +152,25 @@ npm run start
 python scripts/validate.py
 pytest tests/
 npm --prefix frontend run test
+```
+
+### 3. Build for Production
+
+```bash
+# Build frontend
+cd frontend
+npm run build
+
+# Run production backend (serves static frontend)
+cd ..
+python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+```
+
+### 4. Build Desktop App (Electron)
+
+```bash
+cd electron
+npm run build
 ```
 
 Full installation instructions: `docs/guides/installation.md`
