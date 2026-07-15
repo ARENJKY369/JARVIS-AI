@@ -274,6 +274,11 @@ def create_app() -> FastAPI:
                 """JARVIS voice console — hear and command JARVIS."""
                 return FileResponse(console_dir / "index.html")
 
+            @app.get("/console_hud", tags=["UI"], include_in_schema=False)
+            async def hud_console():
+                """JARVIS Iron-Man HUD console — central reactor, custom operator name + avatar."""
+                return FileResponse(console_dir / "console.html")
+
             app.mount(
                 "/console-assets",
                 StaticFiles(directory=str(console_dir)),
