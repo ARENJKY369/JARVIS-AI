@@ -256,12 +256,11 @@ class AskChatGPTSkill(Skill):
                 spoken = spoken[:350].rsplit(" ", 1)[0] + "…"
             msg = (
                 f"Certainly, sir. Quick take: {spoken} "
-                f"I've opened {pretty} with: \"{q_short}\" for a deeper answer."
+                f"I've opened {pretty} with: \"{q_short}\" and auto-sent your message to {pretty} (new tab + preview). Continue there, sir."
             )
         else:
             msg = (
-                f"Certainly, sir. Opening {pretty} with your question: \"{q_short}\". "
-                f"Continue the work there — I've saved the prompt for you."
+                f"Certainly, sir. Opening {pretty} with your question: \"{q_short}\" — message auto-sent to {pretty} (new tab + preview active). I've saved the prompt for you."
             )
 
         return SkillResult(
@@ -275,6 +274,8 @@ class AskChatGPTSkill(Skill):
                 "local_answer": local_answer,
                 "saved": str(path) if path else None,
                 "dry_run": ctx.dry_run,
+                "type": "chatgpt",
+                "action": "send_to_chatgpt",
             },
         )
 

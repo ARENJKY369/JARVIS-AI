@@ -215,22 +215,30 @@ async def voice_status() -> dict[str, Any]:
 
 
 @router.get("/voice/voices")
-async def list_voice_profiles() -> dict[str, Any]:
+async def list_voice_profiles(include_legacy: bool = False) -> dict[str, Any]:
     """
-    List selectable TTS voice profiles (male + female).
-
-    Use the ``id`` field as ``voice`` on /voice/speak and /voice/command.
+    List selectable TTS voice profiles.
+    By default returns only JARVIS + FRIDAY (primary human-like voices).
+    Use ?include_legacy=true to get all backward-compatible voices.
     """
     service = get_voice_service()
-    voices = service.list_voices()
+    if include_legacy:
+        voices = service.list_all_voices()
+    else:
+        voices = service.list_voices(include_legacy=False)
+    # Always provide full catalog in separate field for advanced clients
+    all_voices = service.list_all_voices()
     from core.config import get_settings
 
     return {
         "default": get_settings().ui.default_voice or "jarvis",
         "count": len(voices),
         "voices": voices,
+        "primary": [v for v in voices if v.get("primary")],
         "male": [v for v in voices if v["gender"] == "male"],
         "female": [v for v in voices if v["gender"] == "female"],
+        "all": all_voices if include_legacy else None,
+        "all_count": len(all_voices),
     }
 
 

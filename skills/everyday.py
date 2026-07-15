@@ -64,7 +64,7 @@ SITE_MAP: dict[str, str] = {
 
 class OpenSiteSkill(Skill):
     name = "browser.open_site"
-    description = "Open a popular website by name (WhatsApp, Maps, Netflix, GitHub…)."
+    description = "Open a popular website by name (WhatsApp, Maps, Netflix, GitHub…) - UI opens new tab + preview (open website from website)."
     permissions = [Permission.AUTOMATION_BROWSER]
     examples = [
         "open whatsapp",
@@ -75,6 +75,7 @@ class OpenSiteSkill(Skill):
         "open linkedin",
         "open weather",
         "open calendar",
+        "open website from website",
     ]
 
     def matches(self, text: str) -> float:
@@ -83,7 +84,6 @@ class OpenSiteSkill(Skill):
             return 0.0
         for name in SITE_MAP:
             if name in t:
-                # Let specialized youtube/gmail skills win when exact
                 if name in ("youtube", "gmail") and re.search(r"\b(youtube|gmail)\b", t):
                     return 0.4
                 return 0.91
@@ -93,20 +93,19 @@ class OpenSiteSkill(Skill):
         t = (ctx.user_text or "").lower()
         chosen = None
         url = None
-        # longest name first
         for name in sorted(SITE_MAP.keys(), key=len, reverse=True):
             if name in t:
                 chosen, url = name, SITE_MAP[name]
                 break
         if not url:
-            return SkillResult(False, "Which site shall I open, sir?", self.name, error="UNKNOWN_SITE")
+            return SkillResult(False, "Which site shall I open, sir? Try 'open github.com' or name a site.", self.name, error="UNKNOWN_SITE")
         if not ctx.dry_run:
             webbrowser.open(url, new=2)
         return SkillResult(
             True,
-            f"Opening {chosen.title()}, sir.",
+            f"Opening {chosen.title()} - new tab + preview active, sir.",
             self.name,
-            data={"site": chosen, "url": url},
+            data={"site": chosen, "url": url, "type": "website", "action": "open_website"},
         )
 
 
@@ -524,13 +523,16 @@ class SystemActionSkill(Skill):
 
 class PlayMediaSkill(Skill):
     name = "media.play"
-    description = "Play music or video via YouTube / Spotify search."
+    description = "Play music or video via YouTube / Spotify - embeds video in UI + opens new tab (play the video to)."
     permissions = [Permission.AUTOMATION_BROWSER]
     examples = [
         "play lo-fi hip hop",
         "play music",
         "play despacito on youtube",
         "play something on spotify",
+        "play video",
+        "play the video",
+        "play youtube video",
     ]
 
     def matches(self, text: str) -> float:
@@ -543,27 +545,33 @@ class PlayMediaSkill(Skill):
         t = ctx.user_text or ""
         query = t
         m = re.search(r"play\s+(.+?)(?:\s+on\s+(youtube|spotify))?$", t, re.I)
+        if not m:
+            m = re.search(r"play\s+(.+)$", t, re.I)
         target = "youtube"
         if m:
             query = m.group(1).strip()
-            if m.group(2):
+            if len(m.groups()) > 1 and m.group(2):
                 target = m.group(2).lower()
         if re.search(r"\bspotify\b", t, re.I):
             target = "spotify"
         query = re.sub(r"\s+on\s+(youtube|spotify)$", "", query, flags=re.I).strip()
-        if not query or query.lower() in ("music", "something", "a song"):
+        if not query or query.lower() in ("music", "something", "a song", "video", "the video", "a video"):
             query = "lofi hip hop radio"
         if target == "spotify":
             url = f"https://open.spotify.com/search/{quote_plus(query)}"
+            embed = url
+            msg = f"Playing {query} on Spotify - new tab opened, sir."
         else:
             url = f"https://www.youtube.com/results?search_query={quote_plus(query)}"
+            embed = f"https://www.youtube.com/embed?listType=search&list={quote_plus(query)}&autoplay=1"
+            msg = f"Playing video for {query} on YouTube - embed + new tab active, sir."
         if not ctx.dry_run:
             webbrowser.open(url, new=2)
         return SkillResult(
             True,
-            f"Playing search for {query} on {target.title()}, sir.",
+            msg,
             self.name,
-            data={"query": query, "url": url, "target": target},
+            data={"query": query, "url": url, "embed": embed, "target": target, "type": target, "action": "play_video"},
         )
 
 

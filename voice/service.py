@@ -112,11 +112,17 @@ class VoiceService:
         )
         return result
 
-    def list_voices(self) -> list[dict]:
-        """Selectable TTS profiles (male + female)."""
-        from voice.tts import list_voices
+    def list_voices(self, include_legacy: bool = False) -> list[dict]:
+        """Selectable TTS profiles. By default only JARVIS + FRIDAY (primary)."""
+        from voice.tts import list_voices as tts_list
 
-        return list_voices()
+        # Primary only for UI; legacy available if explicitly requested
+        return tts_list(include_legacy=include_legacy)
+
+    def list_all_voices(self) -> list[dict]:
+        from voice.tts import list_voices as tts_list
+
+        return tts_list(include_legacy=True)
 
     def transcribe(
         self, audio_base64: str | None = None, *, hint: str | None = None

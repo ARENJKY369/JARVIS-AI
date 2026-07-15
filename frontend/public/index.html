@@ -3,715 +3,498 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>JARVIS OS — Voice Console</title>
+  <title>JARVIS OS — Iron Man Console v2</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>J</text></svg>" />
   <style>
     :root {
-      --bg: #05080f;
-      --panel: #0a1220;
-      --panel-2: #0d1a2d;
-      --cyan: #00e5ff;
-      --cyan-dim: #00a8b8;
-      --gold: #c9a227;
-      --text: #d6e6f2;
-      --muted: #6b8499;
-      --danger: #ff4d6d;
-      --ok: #2ee59d;
-      --border: rgba(0, 229, 255, 0.18);
-      --glow: 0 0 24px rgba(0, 229, 255, 0.25);
-      --font: "Segoe UI", system-ui, -apple-system, sans-serif;
-      --mono: "Cascadia Code", "Fira Code", ui-monospace, monospace;
+      --bg:#05080f; --panel:#0a1220; --panel-2:#0d1a2d;
+      --cyan:#00e5ff; --cyan-dim:#00a8b8; --gold:#c9a227; --amber:#f59e0b;
+      --text:#d6e6f2; --muted:#6b8499; --danger:#ff4d6d; --ok:#2ee59d;
+      --border: rgba(0,229,255,0.14); --border-amber: rgba(245,158,11,0.18);
+      --glow: 0 0 24px rgba(0,229,255,0.22); --glow-amber: 0 0 24px rgba(245,158,11,0.18);
+      --font:"Inter","Segoe UI",system-ui,sans-serif; --mono:"JetBrains Mono","Fira Code",ui-monospace,monospace;
     }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: var(--font);
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{
+      font-family:var(--font);
       background:
-        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0, 100, 140, 0.25), transparent),
-        radial-gradient(ellipse 40% 30% at 90% 80%, rgba(0, 80, 100, 0.12), transparent),
+        radial-gradient(ellipse 80% 50% at 50% -12%, rgba(0,229,255,0.12), transparent 60%),
+        radial-gradient(ellipse 45% 36% at 92% 84%, rgba(201,162,39,0.07), transparent 60%),
         var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-      overflow-x: hidden;
+      color:var(--text); min-height:100vh; overflow-x:hidden;
     }
-
-    .grid-bg {
-      position: fixed; inset: 0; pointer-events: none; z-index: 0;
-      background-image:
-        linear-gradient(rgba(0, 229, 255, 0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 229, 255, 0.03) 1px, transparent 1px);
-      background-size: 48px 48px;
-      mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+    .grid-bg{position:fixed; inset:0; pointer-events:none; z-index:0;
+      background-image: linear-gradient(rgba(0,229,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,0.04) 1px, transparent 1px);
+      background-size:32px 32px; mask-image: radial-gradient(ellipse at center, black 36%, transparent 80%);
     }
-
-    header {
-      position: relative; z-index: 1;
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 1.25rem 2rem;
-      border-bottom: 1px solid var(--border);
-      background: rgba(5, 8, 15, 0.7);
-      backdrop-filter: blur(12px);
-    }
-
-    .brand {
-      display: flex; align-items: center; gap: 0.85rem;
-    }
-
-    .logo {
-      width: 46px; height: 46px; border-radius: 50%;
-      border: 2px solid var(--cyan);
-      box-shadow: var(--glow);
-      display: grid; place-items: center;
-      font-weight: 700; color: var(--cyan); font-size: 1.1rem;
-      background: radial-gradient(circle at 30% 30%, #123, #05080f);
-      animation: pulse 3s ease-in-out infinite;
-      overflow: hidden;
-      padding: 0;
-    }
-    .logo img {
-      width: 100%; height: 100%; object-fit: cover;
-      border-radius: 50%;
-    }
-
-    @keyframes pulse {
-      0%, 100% { box-shadow: 0 0 12px rgba(0, 229, 255, 0.3); }
-      50% { box-shadow: 0 0 28px rgba(0, 229, 255, 0.55); }
-    }
-
-    .brand h1 {
-      font-size: 1.15rem; letter-spacing: 0.22em; font-weight: 600;
-      color: var(--cyan);
-    }
-    .brand h1 span { color: var(--muted); font-weight: 400; letter-spacing: 0.12em; font-size: 0.75rem; display: block; }
-
-    .status-pill {
-      display: flex; align-items: center; gap: 0.5rem;
-      font-size: 0.8rem; color: var(--muted);
-      padding: 0.4rem 0.85rem;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      background: var(--panel);
-    }
-    .dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: var(--muted);
-    }
-    .dot.ok { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
-    .dot.err { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
-    .dot.busy { background: var(--gold); box-shadow: 0 0 8px var(--gold); animation: blink 0.8s infinite; }
-    @keyframes blink { 50% { opacity: 0.4; } }
-
-    main {
-      position: relative; z-index: 1;
-      max-width: 920px; margin: 0 auto;
-      padding: 2rem 1.25rem 4rem;
-      display: grid; gap: 1.25rem;
-    }
-
-    .arc-reactor {
-      width: 160px; height: 160px; margin: 0.5rem auto 1rem;
-      border-radius: 50%;
-      border: 2px solid var(--cyan);
-      box-shadow: inset 0 0 30px rgba(0, 229, 255, 0.15), var(--glow);
-      display: grid; place-items: center;
-      position: relative;
-      background: radial-gradient(circle, rgba(0, 229, 255, 0.08), transparent 70%);
-    }
-    .arc-reactor::before, .arc-reactor::after {
-      content: ""; position: absolute; border-radius: 50%;
-      border: 1px solid rgba(0, 229, 255, 0.25);
-    }
-    .arc-reactor::before { inset: 18px; }
-    .arc-reactor::after { inset: 36px; border-style: dashed; animation: spin 12s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .arc-core {
-      width: 48px; height: 48px; border-radius: 50%;
-      background: radial-gradient(circle at 40% 35%, #8ff, var(--cyan) 40%, #046);
-      box-shadow: 0 0 20px var(--cyan);
-      transition: transform 0.2s, box-shadow 0.2s;
-    }
-    .arc-reactor.speaking .arc-core {
-      transform: scale(1.15);
-      box-shadow: 0 0 40px var(--cyan), 0 0 80px rgba(0, 229, 255, 0.4);
-      animation: speak-pulse 0.35s ease-in-out infinite alternate;
-    }
-    @keyframes speak-pulse {
-      from { transform: scale(1.05); }
-      to { transform: scale(1.25); }
-    }
-
-    .tagline {
-      text-align: center; color: var(--muted); font-size: 0.85rem;
-      letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 0.5rem;
-    }
-
-    .panel {
-      background: linear-gradient(180deg, var(--panel-2), var(--panel));
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 1.25rem 1.4rem;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
-    }
-    .panel h2 {
-      font-size: 0.75rem; letter-spacing: 0.16em; text-transform: uppercase;
-      color: var(--cyan-dim); margin-bottom: 0.9rem; font-weight: 600;
-    }
-
-    .log {
-      min-height: 220px; max-height: 340px; overflow-y: auto;
-      font-family: var(--mono); font-size: 0.85rem; line-height: 1.55;
-      display: flex; flex-direction: column; gap: 0.65rem;
-      padding-right: 0.25rem;
-    }
-    .log::-webkit-scrollbar { width: 6px; }
-    .log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-
-    .msg {
-      padding: 0.55rem 0.75rem;
-      border-radius: 8px;
-      border-left: 3px solid var(--muted);
-      background: rgba(0, 0, 0, 0.25);
-    }
-    .msg.user { border-left-color: var(--gold); }
-    .msg.jarvis { border-left-color: var(--cyan); }
-    .msg.system { border-left-color: var(--muted); color: var(--muted); font-size: 0.8rem; }
-    .msg .who {
-      font-size: 0.68rem; letter-spacing: 0.12em; text-transform: uppercase;
-      margin-bottom: 0.2rem; opacity: 0.75;
-    }
-    .msg.user .who { color: var(--gold); }
-    .msg.jarvis .who { color: var(--cyan); }
-
-    .controls {
-      display: grid; gap: 0.75rem;
-    }
-
-    .row {
-      display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center;
-    }
-
-    input[type="text"], select {
-      flex: 1; min-width: 180px;
-      background: rgba(0, 0, 0, 0.4);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 0.75rem 1rem;
-      border-radius: 10px;
-      font-size: 0.95rem;
-      outline: none;
-      transition: border-color 0.15s, box-shadow 0.15s;
-    }
-    input[type="text"]:focus {
-      border-color: var(--cyan);
-      box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.12);
-    }
-
-    button {
-      cursor: pointer;
-      border: 1px solid var(--border);
-      background: rgba(0, 229, 255, 0.08);
-      color: var(--cyan);
-      padding: 0.75rem 1.15rem;
-      border-radius: 10px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      letter-spacing: 0.06em;
-      transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
-      white-space: nowrap;
-    }
-    button:hover:not(:disabled) {
-      background: rgba(0, 229, 255, 0.18);
-      box-shadow: var(--glow);
-    }
-    button:active:not(:disabled) { transform: scale(0.97); }
-    button:disabled { opacity: 0.45; cursor: not-allowed; }
-    button.primary {
-      background: linear-gradient(135deg, rgba(0, 229, 255, 0.25), rgba(0, 120, 160, 0.3));
-      border-color: var(--cyan);
-    }
-    button.mic {
-      width: 52px; height: 52px; border-radius: 50%; padding: 0;
-      font-size: 1.25rem; display: grid; place-items: center;
-    }
-    button.mic.listening {
-      background: rgba(255, 77, 109, 0.2);
-      border-color: var(--danger);
-      color: var(--danger);
-      animation: pulse 1s infinite;
-    }
-    button.ghost { background: transparent; color: var(--muted); }
-
-    .quick {
-      display: flex; flex-wrap: wrap; gap: 0.45rem;
-    }
-    .quick button {
-      padding: 0.4rem 0.75rem;
-      font-size: 0.75rem;
-      font-weight: 500;
-      color: var(--muted);
-      background: rgba(255, 255, 255, 0.03);
-    }
-    .quick button:hover:not(:disabled) { color: var(--cyan); }
-
-    .meta {
-      display: flex; flex-wrap: wrap; gap: 1rem;
-      font-size: 0.75rem; color: var(--muted);
-      margin-top: 0.5rem;
-    }
-    .meta strong { color: var(--text); font-weight: 500; }
-
-    footer {
-      text-align: center; color: var(--muted); font-size: 0.7rem;
-      letter-spacing: 0.14em; padding: 1rem; opacity: 0.7;
-    }
-
-    audio { display: none; }
-
-    @media (max-width: 560px) {
-      header { padding: 1rem; }
-      .brand h1 { font-size: 0.95rem; letter-spacing: 0.14em; }
-      main { padding: 1.25rem 0.85rem 3rem; }
-    }
+    header{position:relative; z-index:2; display:flex; align-items:center; justify-content:space-between; padding:1.1rem 1.6rem; border-bottom:1px solid var(--border); background:rgba(5,8,15,0.72); backdrop-filter:blur(16px);}
+    header::before{content:""; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg, transparent, rgba(0,229,255,0.5), transparent);}
+    .brand{display:flex; align-items:center; gap:0.9rem}
+    .logo{width:46px; height:46px; border-radius:50%; border:2px solid var(--cyan); box-shadow:var(--glow); display:grid; place-items:center; font-weight:800; color:var(--cyan); background:radial-gradient(circle at 30% 30%, #123, #05080f); position:relative; overflow:hidden;}
+    .logo::after{content:""; position:absolute; inset:-6px; border:1px dashed rgba(0,229,255,0.28); border-radius:50%; animation:spin 14s linear infinite;}
+    .logo img{width:100%; height:100%; object-fit:cover; border-radius:50%;}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    @keyframes pulse{0%,100%{box-shadow:0 0 12px rgba(0,229,255,0.32)}50%{box-shadow:0 0 28px rgba(0,229,255,0.58)}}
+    .brand h1{font-size:1.08rem; letter-spacing:0.22em; font-weight:700; color:var(--cyan); line-height:1}
+    .brand h1 span{color:var(--muted); font-weight:400; letter-spacing:0.14em; font-size:0.7rem; display:block; margin-top:2px}
+    .status-pill{display:flex; align-items:center; gap:0.55rem; font-size:0.78rem; color:var(--muted); padding:0.46rem 0.9rem; border:1px solid var(--border); border-radius:999px; background:var(--panel);}
+    .dot{width:8px; height:8px; border-radius:50%; background:var(--muted)}
+    .dot.ok{background:var(--ok); box-shadow:0 0 8px var(--ok)} .dot.err{background:var(--danger); box-shadow:0 0 8px var(--danger)} .dot.busy{background:var(--gold); box-shadow:0 0 8px var(--gold); animation:blink 0.8s infinite}
+    @keyframes blink{50%{opacity:0.45}}
+    main{position:relative; z-index:1; max-width:1080px; margin:0 auto; padding:1.6rem 1.2rem 3.5rem; display:grid; gap:1.15rem}
+    .hero{display:grid; place-items:center; padding:0.6rem 0 0.2rem}
+    .arc-reactor{width:172px; height:172px; border-radius:50%; border:2px solid var(--cyan); box-shadow:inset 0 0 30px rgba(0,229,255,0.14), var(--glow); display:grid; place-items:center; position:relative; background:radial-gradient(circle, rgba(0,229,255,0.08), transparent 70%);}
+    .arc-reactor.friday{border-color:var(--amber); box-shadow:inset 0 0 30px rgba(245,158,11,0.14), var(--glow-amber)}
+    .arc-reactor::before, .arc-reactor::after{content:""; position:absolute; border-radius:50%; border:1px solid rgba(0,229,255,0.22)}
+    .arc-reactor.friday::before, .arc-reactor.friday::after{border-color:rgba(245,158,11,0.22)}
+    .arc-reactor::before{inset:18px} .arc-reactor::after{inset:36px; border-style:dashed; animation:spin 12s linear infinite reverse}
+    .arc-core{width:52px; height:52px; border-radius:50%; background:radial-gradient(circle at 36% 30%, #9ff, var(--cyan) 42%, #036); box-shadow:0 0 20px var(--cyan); transition:transform 0.2s, box-shadow 0.2s}
+    .arc-reactor.friday .arc-core{background:radial-gradient(circle at 36% 30%, #ffec99, #f59e0b 42%, #78350f); box-shadow:0 0 20px var(--amber)}
+    .arc-reactor.speaking .arc-core{transform:scale(1.16); box-shadow:0 0 40px var(--cyan), 0 0 80px rgba(0,229,255,0.38); animation:speak-pulse 0.36s ease-in-out infinite alternate}
+    .arc-reactor.friday.speaking .arc-core{box-shadow:0 0 40px var(--amber), 0 0 80px rgba(245,158,11,0.38)}
+    @keyframes speak-pulse{from{transform:scale(1.06)}to{transform:scale(1.26)}}
+    .tagline{text-align:center; color:var(--muted); font-size:0.82rem; letter-spacing:0.18em; text-transform:uppercase; margin:0.6rem 0 0.2rem}
+    .panel{background:linear-gradient(180deg, var(--panel-2), var(--panel)); border:1px solid var(--border); border-radius:16px; padding:1.15rem 1.25rem; box-shadow:0 8px 32px rgba(0,0,0,0.38); position:relative; overflow:hidden}
+    .panel.amber{border-color:var(--border-amber)}
+    .panel h2{font-size:0.72rem; letter-spacing:0.16em; text-transform:uppercase; color:var(--cyan-dim); margin-bottom:0.85rem; font-weight:700; display:flex; align-items:center; gap:0.5rem}
+    .panel.amber h2{color:#d97706}
+    .log{min-height:260px; max-height:380px; overflow-y:auto; font-family:var(--mono); font-size:0.86rem; line-height:1.55; display:flex; flex-direction:column; gap:0.6rem; padding-right:0.2rem}
+    .log::-webkit-scrollbar{width:6px} .log::-webkit-scrollbar-thumb{background:var(--border); border-radius:3px}
+    .msg{padding:0.6rem 0.8rem; border-radius:10px; border-left:3px solid var(--muted); background:rgba(0,0,0,0.26)}
+    .msg.user{border-left-color:var(--gold)} .msg.jarvis{border-left-color:var(--cyan)} .msg.jarvis.friday{border-left-color:var(--amber)} .msg.system{border-left-color:var(--muted); color:var(--muted); font-size:0.8rem}
+    .msg .who{font-size:0.66rem; letter-spacing:0.12em; text-transform:uppercase; margin-bottom:0.2rem; opacity:0.8}
+    .msg.user .who{color:var(--gold)} .msg.jarvis .who{color:var(--cyan)} .msg.jarvis.friday .who{color:var(--amber)}
+    .controls{display:grid; gap:0.8rem}
+    .row{display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center}
+    input[type="text"], select{flex:1; min-width:180px; background:rgba(0,0,0,0.42); border:1px solid var(--border); color:var(--text); padding:0.8rem 1rem; border-radius:12px; font-size:0.95rem; outline:none; transition:border-color 0.15s, box-shadow 0.15s}
+    input[type="text"]:focus{border-color:var(--cyan); box-shadow:0 0 0 3px rgba(0,229,255,0.12)}
+    select{flex:0; min-width:220px}
+    button{cursor:pointer; border:1px solid var(--border); background:rgba(0,229,255,0.08); color:var(--cyan); padding:0.78rem 1.15rem; border-radius:12px; font-size:0.84rem; font-weight:600; letter-spacing:0.06em; transition:background 0.15s, transform 0.1s, box-shadow 0.15s; white-space:nowrap}
+    button:hover:not(:disabled){background:rgba(0,229,255,0.18); box-shadow:var(--glow)} button:active:not(:disabled){transform:scale(0.97)} button:disabled{opacity:0.45; cursor:not-allowed}
+    button.primary{background:linear-gradient(135deg, rgba(0,229,255,0.24), rgba(0,120,160,0.32)); border-color:var(--cyan)}
+    button.amber{background:linear-gradient(135deg, rgba(245,158,11,0.18), rgba(146,64,14,0.22)); border-color:var(--amber); color:#fde68a}
+    button.amber:hover{box-shadow:var(--glow-amber)}
+    button.mic{width:54px; height:54px; border-radius:50%; padding:0; font-size:1.28rem; display:grid; place-items:center}
+    button.mic.listening{background:rgba(255,77,109,0.18); border-color:var(--danger); color:var(--danger); animation:pulse 1s infinite}
+    button.ghost{background:transparent; color:var(--muted)}
+    .quick{display:flex; flex-wrap:wrap; gap:0.46rem}
+    .quick button{padding:0.44rem 0.78rem; font-size:0.74rem; font-weight:500; color:var(--muted); background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.06)}
+    .quick button:hover:not(:disabled){color:var(--cyan); border-color:var(--border)}
+    .meta{display:flex; flex-wrap:wrap; gap:1rem; font-size:0.74rem; color:var(--muted); margin-top:0.4rem}
+    .meta strong{color:var(--text); font-weight:500}
+    .media-panel{display:none; margin-top:0.6rem; border-radius:14px; overflow:hidden; border:1px solid var(--border); background:#000}
+    .media-panel.active{display:block}
+    .media-head{display:flex; align-items:center; justify-content:space-between; padding:0.65rem 0.9rem; background:linear-gradient(180deg, #0d1a2d, #0a1220); border-bottom:1px solid var(--border); font-size:0.8rem}
+    .media-head .left{display:flex; align-items:center; gap:0.5rem}
+    footer{text-align:center; color:var(--muted); font-size:0.7rem; letter-spacing:0.14em; padding:1rem; opacity:0.75}
+    audio{display:none}
+    .badge{font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; padding:0.2rem 0.5rem; border-radius:999px; border:1px solid var(--border); background:rgba(0,229,255,0.08); color:var(--cyan)}
+    .badge.amber{background:rgba(245,158,11,0.12); border-color:var(--border-amber); color:var(--amber)}
+    @media(max-width:600px){header{padding:1rem} main{padding:1.1rem 0.85rem 3rem}}
   </style>
 </head>
 <body>
   <div class="grid-bg"></div>
-
   <header>
     <div class="brand">
-      <div class="logo"><img src="/console-assets/logo.png" alt="JARVIS" onerror="this.remove();this.parentElement.textContent='J';" /></div>
-      <h1>JARVIS <span>OS · VOICE + SKILLS CONSOLE</span></h1>
+      <div class="logo"><img src="/console-assets/logo.png" alt="JARVIS" onerror="this.style.display='none'; this.parentElement.textContent='J';" /></div>
+      <h1 id="brandTitle">JARVIS <span id="brandSub">OS • VOICE + SKILLS • V2 HUMANIZED</span></h1>
     </div>
-    <div class="status-pill" id="statusPill">
-      <span class="dot" id="statusDot"></span>
-      <span id="statusText">Connecting…</span>
-    </div>
+    <div class="status-pill" id="statusPill"><span class="dot" id="statusDot"></span><span id="statusText">Connecting…</span></div>
   </header>
 
   <main>
-    <div>
-      <div class="arc-reactor" id="reactor">
-        <div class="arc-core"></div>
+    <div class="hero">
+      <div class="arc-reactor" id="reactor"><div class="arc-core"></div></div>
+      <p class="tagline" id="tagline">At your service, sir — crackle fixed, human-like voice</p>
+      <div style="display:flex; gap:0.5rem; margin-top:0.6rem; flex-wrap:wrap; justify-content:center">
+        <span class="badge">Formant v2 • Soft Limiter • No Crackle</span>
+        <span class="badge amber">JARVIS + FRIDAY only • Human-like</span>
+        <span class="badge">Play Video • Open Website • Auto-send to ChatGPT ✓</span>
       </div>
-      <p class="tagline">At your service, sir</p>
     </div>
 
-    <section class="panel">
-      <h2>Conversation</h2>
-      <div class="log" id="log">
-        <div class="msg system">
-          <div class="who">System</div>
-          Boot sequence ready. Click <strong>Hear JARVIS</strong> to verify audio,
-          or type / speak a command.
+    <section class="panel" id="mediaSection">
+      <h2>🎬 Media & Website Preview — Play Video / Open Website / ChatGPT Auto-Send</h2>
+      <div id="mediaPreview" style="display:flex; align-items:center; gap:0.8rem; color:var(--muted); font-size:0.84rem">
+        No media yet. Try: "play lo-fi on YouTube" → embed + new tab, "open github.com" → opens site, "ask ChatGPT about AI" → auto-opens ChatGPT with query.
+      </div>
+      <div class="media-panel" id="mediaPanel">
+        <div class="media-head">
+          <div class="left"><span id="mediaIcon">▶</span> <strong id="mediaTitle">Media</strong> <span id="mediaType" style="color:var(--muted); font-size:0.7rem; text-transform:uppercase; letter-spacing:0.12em"></span></div>
+          <div style="display:flex; gap:0.4rem">
+            <button id="mediaOpenBtn" style="padding:0.3rem 0.6rem; font-size:0.7rem">Open in new tab ↗</button>
+            <button id="mediaCloseBtn" class="ghost" style="padding:0.3rem 0.6rem; font-size:0.7rem">✕ Close</button>
+          </div>
         </div>
+        <div id="mediaBody" style="background:#000; min-height:120px; display:grid; place-items:center; color:var(--muted)"></div>
       </div>
     </section>
 
     <section class="panel">
-      <h2>Command Interface</h2>
+      <h2>💬 Conversation — Skills + Chat + Human Voice</h2>
+      <div class="log" id="log">
+        <div class="msg system"><div class="who">System</div>Boot sequence v2 ready. Crackle eliminated via soft limiter, DC blocker, crossfade. Human-like voices: JARVIS (92Hz deep) + FRIDAY (182Hz cool). Features: play video embeds YouTube & opens tab, open website opens new tab + preview, ask ChatGPT auto-opens chatgpt.com/?q=... (send the msg). Click Preview voice to hear humanized voice.</div>
+      </div>
+    </section>
+
+    <section class="panel" id="controlPanel">
+      <h2>🎛 Command Interface — Professional HUD</h2>
       <div class="controls">
         <div class="row">
-          <input
-            type="text"
-            id="input"
-            placeholder="e.g. ask chatgpt about X · research Y · open YouTube · email Mom saying…"
-            autocomplete="off"
-          />
-          <button class="mic" id="micBtn" title="Hold to speak (browser speech recognition)" aria-label="Microphone">🎤</button>
+          <input type="text" id="input" placeholder="e.g. play lo-fi hip hop on YouTube • open github.com • ask ChatGPT about quantum computing • open website • send msg to ChatGPT" autocomplete="off" />
+          <button class="mic" id="micBtn" title="Voice command (Web Speech API)" aria-label="Microphone">🎤</button>
           <button class="primary" id="sendBtn">Send</button>
         </div>
-
         <div class="row">
           <button id="demoBtn">▶ Hear JARVIS</button>
           <button id="speakBtn">Speak text only</button>
           <button class="ghost" id="clearBtn">Clear log</button>
-          <select id="voiceSelect" title="Voice profile" style="flex:0; min-width:200px">
-            <optgroup label="Male">
-              <option value="jarvis">JARVIS (Classic)</option>
-              <option value="jarvis-fast">JARVIS Fast</option>
-              <option value="deep">Deep Male</option>
-              <option value="calm">Calm Male</option>
-              <option value="warm">Warm Male</option>
-              <option value="alert">Alert Male</option>
-              <option value="news">News Male</option>
-            </optgroup>
-            <optgroup label="Female">
-              <option value="aria">Aria (Female)</option>
-              <option value="nova">Nova (Female)</option>
-              <option value="friday">FRIDAY-style</option>
-              <option value="soft">Soft Female</option>
-              <option value="sage">Sage (Female)</option>
-            </optgroup>
+          <select id="voiceSelect" title="Voice — Human-like JARVIS / FRIDAY (only two as requested)">
+            <option value="jarvis">JARVIS — Deep British Butler (Human, 92Hz)</option>
+            <option value="friday">FRIDAY — Cool Female Companion (Human, 182Hz)</option>
           </select>
-          <button id="previewVoiceBtn" class="ghost" title="Preview selected voice">Preview voice</button>
+          <button id="previewVoiceBtn" class="amber" title="Preview selected human-like voice">Preview voice ✨</button>
+          <button id="stopBtn" class="ghost" title="Stop speaking">⏹ Stop</button>
         </div>
-
         <div class="quick">
           <button data-q="Hello JARVIS">Hello</button>
-          <button data-q="How are you?">How are you?</button>
-          <button data-q="ask chatgpt about artificial intelligence">🤖 Ask ChatGPT</button>
-          <button data-q="research quantum computing for beginners">📚 Research</button>
-          <button data-q="help me write a professional email">✍ Write for me</button>
+          <button data-q="play lo-fi hip hop on YouTube">▶ Play YouTube video</button>
+          <button data-q="play despacito">▶ Play music</button>
+          <button data-q="open github.com">🌐 Open GitHub site</button>
+          <button data-q="open youtube.com">▶ Open YouTube site</button>
+          <button data-q="ask ChatGPT about artificial intelligence basics">🤖 Ask ChatGPT + auto-send msg</button>
+          <button data-q="research quantum computing for beginners">📚 Research + open ChatGPT</button>
+          <button data-q="search for Iron Man trailer">🔍 Search + open website</button>
           <button data-q="explain machine learning simply">💡 Explain</button>
-          <button data-q="Open YouTube">▶ YouTube</button>
-          <button data-q="play lo-fi hip hop">▶ Play music</button>
           <button data-q="Open Gmail">✉ Gmail</button>
-          <button data-q="email test@example.com saying Hello from JARVIS">✉ Email</button>
-          <button data-q="Open WhatsApp">WhatsApp</button>
-          <button data-q="set a timer for 5 minutes">⏱ Timer</button>
-          <button data-q="note buy milk and call Tony">📝 Note</button>
-          <button data-q="calculate 25 * 48">∑ Math</button>
-          <button data-q="Search for Iron Man">Search</button>
-          <button data-q="directions to airport">Maps</button>
-          <button data-q="System status">Status</button>
+          <button data-q="open whatsapp">WhatsApp</button>
           <button data-q="What can you do?">Help</button>
-          <button data-q="open youtube and set a timer for 5 minutes">⚡ Mission</button>
+          <button data-q="open youtube and set a timer for 5 minutes">⚡ Multi-mission</button>
         </div>
-
         <div class="meta">
           <span>API: <strong id="apiHost">—</strong></span>
-          <span>TTS: <strong id="ttsEngine">—</strong></span>
-          <span>Last intent: <strong id="lastIntent">—</strong></span>
+          <span>TTS: <strong id="ttsEngine">—</strong> • Human • No crackle</span>
+          <span>Voice: <strong id="voiceMode">JARVIS 92Hz human</strong></span>
+          <span>Last skill: <strong id="lastIntent">—</strong></span>
+          <span>Media: <strong id="mediaState">none</strong></span>
           <span>Audio: <strong id="audioState">idle</strong></span>
         </div>
       </div>
     </section>
   </main>
 
-  <footer>JARVIS OS · LOCAL VOICE ENGINE · NO CLOUD REQUIRED</footer>
-
+  <footer>JARVIS OS v2 • HUMAN-LIKE JARVIS + FRIDAY • CRACKLE FIXED • PLAY VIDEO • OPEN WEBSITE • CHATGPT AUTO-SEND • LOCAL • OFFLINE-FIRST</footer>
   <audio id="player"></audio>
 
   <script>
-    // ---------------------------------------------------------------------------
-    // Config
-    // ---------------------------------------------------------------------------
-    const API = (location.port === "8000" || location.port === "")
-      ? `${location.protocol}//${location.hostname}:${location.port || 8000}`
-      : "http://127.0.0.1:8000";
-
+    const API = (location.port === "8000" || location.port === "") ? `${location.protocol}//${location.hostname}:${location.port || 8000}` : "http://127.0.0.1:8000";
     const $ = (id) => document.getElementById(id);
     const logEl = $("log");
     const player = $("player");
     const reactor = $("reactor");
     const input = $("input");
+    const brandTitle = $("brandTitle");
+    const tagline = $("tagline");
+    const voiceSelect = $("voiceSelect");
+    const voiceModeEl = $("voiceMode");
+    const mediaPanel = $("mediaPanel");
+    const mediaBody = $("mediaBody");
+    const mediaTitle = $("mediaTitle");
+    const mediaTypeEl = $("mediaType");
+    const mediaIcon = $("mediaIcon");
+    const mediaPreview = $("mediaPreview");
+    const mediaState = $("mediaState");
+    let currentMediaUrl = null;
 
-    document.getElementById("apiHost").textContent = API + "/api/v1";
+    $("apiHost").textContent = API + "/api/v1";
 
-    // ---------------------------------------------------------------------------
-    // UI helpers
-    // ---------------------------------------------------------------------------
-    function addMsg(role, text) {
+    function addMsg(role, text){
       const el = document.createElement("div");
-      el.className = `msg ${role}`;
-      const who = role === "user" ? "You" : role === "jarvis" ? "JARVIS" : "System";
+      let cls = role;
+      if(role==="jarvis" && voiceSelect.value==="friday") cls += " friday";
+      el.className = `msg ${cls}`;
+      const who = role==="user" ? "You" : role==="jarvis" ? (voiceSelect.value==="friday" ? "FRIDAY" : "JARVIS") : "System";
       el.innerHTML = `<div class="who">${who}</div><div></div>`;
       el.lastChild.textContent = text;
       logEl.appendChild(el);
       logEl.scrollTop = logEl.scrollHeight;
     }
-
-    function setStatus(state, text) {
-      const dot = $("statusDot");
-      dot.className = "dot " + (state || "");
+    function setStatus(state, text){
+      $("statusDot").className = "dot " + (state||"");
       $("statusText").textContent = text;
     }
-
-    function setBusy(busy) {
-      ["sendBtn", "demoBtn", "speakBtn", "micBtn", "previewVoiceBtn"].forEach((id) => {
-        const el = $(id);
-        if (el) el.disabled = busy;
-      });
-      if (busy) setStatus("busy", "Processing…");
+    function setBusy(busy){
+      ["sendBtn","demoBtn","speakBtn","micBtn","previewVoiceBtn"].forEach(id=>{ const el=$(id); if(el) el.disabled=busy; });
+      if(busy) setStatus("busy","Processing…");
+    }
+    function updateVoiceUI(){
+      const v = voiceSelect.value;
+      const isFriday = v==="friday";
+      reactor.classList.toggle("friday", isFriday);
+      $("controlPanel").classList.toggle("amber", isFriday);
+      brandTitle.childNodes[0].textContent = isFriday ? "FRIDAY " : "JARVIS ";
+      voiceModeEl.textContent = isFriday ? "FRIDAY 182Hz human-like cool" : "JARVIS 92Hz deep human-like butler";
+      tagline.textContent = isFriday ? "Hey, ready to assist — FRIDAY human-like, crackle-free" : "At your service, sir — JARVIS human-like, crackle-free";
+      localStorage.setItem("jarvis-console-voice", v);
     }
 
-    // ---------------------------------------------------------------------------
-    // Audio playback — the critical path for "hearing" JARVIS
-    // ---------------------------------------------------------------------------
+    // ---------------- Web Speech API - Human-like voice (fixes cracked sound) ----------------
+    function getHumanVoice(forJarvis=true){
+      const voices = window.speechSynthesis ? window.speechSynthesis.getVoices() : [];
+      if(!voices.length) return null;
+      if(forJarvis){
+        return voices.find(v=>/UK.*Male/i.test(v.name)) || voices.find(v=>/George/i.test(v.name)) || voices.find(v=>/en-GB/i.test(v.lang) && /male/i.test(v.name)) || voices.find(v=>/en-GB/i.test(v.lang)) || voices.find(v=>v.lang.startsWith("en"));
+      } else {
+        return voices.find(v=>/UK.*Female/i.test(v.name)) || voices.find(v=>/Female/i.test(v.name) && /en-GB/i.test(v.lang)) || voices.find(v=>v.lang.startsWith("en") && /female/i.test(v.name.toLowerCase())) || voices.find(v=>v.lang.startsWith("en"));
+      }
+    }
+    function speakWithWebSpeech(text, preferJarvis=true){
+      return new Promise((resolve, reject)=>{
+        if(!('speechSynthesis' in window)){ reject(new Error("no webspeech")); return; }
+        try{
+          window.speechSynthesis.cancel();
+          const utter = new SpeechSynthesisUtterance((text||"").slice(0,600));
+          const hv = getHumanVoice(preferJarvis);
+          if(hv) utter.voice = hv;
+          utter.rate = preferJarvis ? 0.86 : 0.94;
+          utter.pitch = preferJarvis ? 0.9 : 1.08;
+          utter.volume = 0.96;
+          utter.onstart = ()=>{ reactor.classList.add("speaking"); $("audioState").textContent="speaking (human web)"; };
+          utter.onend = ()=>{ reactor.classList.remove("speaking"); $("audioState").textContent="idle"; resolve(); };
+          utter.onerror = (e)=>{ reactor.classList.remove("speaking"); $("audioState").textContent="error"; reject(e); };
+          window.speechSynthesis.speak(utter);
+        }catch(e){ reject(e); }
+      });
+    }
+
+    // ---------------- Backend WAV fallback (v2 no crackle) ----------------
     let currentUrl = null;
-
-    function playAudio({ data_uri, audio_base64 }) {
-      return new Promise((resolve, reject) => {
+    function playAudioBackend({data_uri, audio_base64}){
+      return new Promise((resolve, reject)=>{
         let src = data_uri;
-        if (!src && audio_base64) {
-          src = `data:audio/wav;base64,${audio_base64}`;
-        }
-        if (!src) {
-          reject(new Error("No audio payload"));
-          return;
-        }
-
-        // Revoke previous blob URLs
-        if (currentUrl && currentUrl.startsWith("blob:")) {
-          URL.revokeObjectURL(currentUrl);
-        }
-
-        // Prefer blob URL for better browser compatibility with large base64
-        if (audio_base64) {
-          try {
+        if(!src && audio_base64) src = `data:audio/wav;base64,${audio_base64}`;
+        if(!src){ reject(new Error("No audio")); return; }
+        if(currentUrl && currentUrl.startsWith("blob:")){ URL.revokeObjectURL(currentUrl); }
+        if(audio_base64){
+          try{
             const binary = atob(audio_base64);
             const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-            const blob = new Blob([bytes], { type: "audio/wav" });
+            for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
+            const blob = new Blob([bytes], {type:"audio/wav"});
             src = URL.createObjectURL(blob);
             currentUrl = src;
-          } catch (e) {
-            console.warn("Blob conversion failed, using data URI", e);
-          }
+          }catch(e){}
         }
-
-        $("audioState").textContent = "loading";
+        $("audioState").textContent="loading (v2 clean)";
         player.src = src;
-        player.onended = () => {
-          reactor.classList.remove("speaking");
-          $("audioState").textContent = "idle";
-          resolve();
-        };
-        player.onerror = (e) => {
-          reactor.classList.remove("speaking");
-          $("audioState").textContent = "error";
-          reject(new Error("Audio playback failed"));
-        };
-        player.onplay = () => {
-          reactor.classList.add("speaking");
-          $("audioState").textContent = "playing";
-        };
-
+        player.onended = ()=>{ reactor.classList.remove("speaking"); $("audioState").textContent="idle"; resolve(); };
+        player.onerror = ()=>{ reactor.classList.remove("speaking"); $("audioState").textContent="error"; reject(new Error("playback failed")); };
+        player.onplay = ()=>{ reactor.classList.add("speaking"); $("audioState").textContent="playing (v2 clean, no crackle)"; };
         const p = player.play();
-        if (p && p.catch) {
-          p.catch((err) => {
-            // Autoplay blocked — try once more after user gesture context
-            reactor.classList.remove("speaking");
-            $("audioState").textContent = "blocked";
-            addMsg("system", "Browser blocked autoplay. Click Hear JARVIS again — user gesture unlocks audio.");
-            reject(err);
-          });
-        }
+        if(p && p.catch){ p.catch(err=>{ reactor.classList.remove("speaking"); $("audioState").textContent="blocked (click again)"; addMsg("system","Browser blocked autoplay — click Hear JARVIS again (user gesture unlocks). Backend v2 is crackle-free."); reject(err); }); }
       });
     }
-
-    // ---------------------------------------------------------------------------
-    // API calls
-    // ---------------------------------------------------------------------------
-    async function api(path, body, method = "POST") {
-      const opts = {
-        method,
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-      };
-      if (body !== undefined) opts.body = JSON.stringify(body);
-      const res = await fetch(`${API}/api/v1${path}`, opts);
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || err.message || `HTTP ${res.status}`);
-      }
-      return res.json();
+    async function speakSmart(text){
+      const preferJarvis = voiceSelect.value!=="friday";
+      try{ await speakWithWebSpeech(text, preferJarvis); return; }catch(e){ /* fallback */ }
+      // Fallback to backend clean v2
+      try{
+        const voice = voiceSelect.value;
+        const data = await api("/voice/speak", {text: text.slice(0,600), voice});
+        await playAudioBackend(data);
+      }catch(e){ addMsg("system","TTS failed: "+e.message); }
     }
 
-    async function checkHealth() {
-      try {
+    // ---------------- Media handling: play video / open website / ChatGPT auto-send ----------------
+    function openMedia(url, title, type){
+      currentMediaUrl = url;
+      mediaPanel.classList.add("active");
+      mediaTitle.textContent = title || url;
+      mediaTypeEl.textContent = type;
+      mediaState.textContent = type + " • " + (new URL(url).hostname);
+      mediaPreview.textContent = `${type} active: ${title} — opening new tab + preview as requested (play video / open website / send to ChatGPT).`;
+
+      if(type==="youtube"){
+        mediaIcon.textContent="▶";
+        // Extract query or video id
+        let embedUrl = url;
+        try{
+          const u = new URL(url);
+          const q = u.searchParams.get("search_query") || u.searchParams.get("q");
+          const v = u.searchParams.get("v");
+          if(q){
+            embedUrl = `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(q)}&autoplay=1`;
+          } else if(v){
+            embedUrl = `https://www.youtube.com/embed/${v}?autoplay=1`;
+          }
+        }catch{}
+        mediaBody.innerHTML = `<iframe src="${embedUrl}" style="width:100%; height:360px; border:0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen title="${title}"></iframe>`;
+      } else if(type==="spotify"){
+        mediaIcon.textContent="♫";
+        mediaBody.innerHTML = `<div style="padding:2rem; text-align:center"><p style="margin-bottom:1rem">🎵 Spotify: ${title}</p><a href="${url}" target="_blank" rel="noopener" style="color:var(--cyan)">Open Spotify →</a></div>`;
+      } else if(type==="chatgpt"){
+        mediaIcon.textContent="🤖";
+        mediaBody.innerHTML = `<div style="padding:1.2rem"><div style="color:var(--gold); font-weight:600; margin-bottom:0.6rem">🤖 ChatGPT — Auto-send (as requested)</div><div style="font-size:0.84rem; color:var(--muted); margin-bottom:0.8rem">Query pre-filled in URL — ChatGPT will receive your message when the new tab opens (send the msg).</div><div style="background:rgba(0,0,0,0.4); border:1px solid var(--border); border-radius:10px; padding:0.8rem; font-family:var(--mono); font-size:0.84rem; word-break:break-all">${url}</div><div style="margin-top:1rem"><a href="${url}" target="_blank" rel="noopener" style="display:inline-block; padding:0.6rem 1rem; background:linear-gradient(135deg, rgba(139,92,246,0.2), rgba(124,58,237,0.2)); border:1px solid rgba(139,92,246,0.3); color:#c4b5fd; border-radius:10px; text-decoration:none">Open ChatGPT with message ↗</a></div></div>`;
+      } else {
+        mediaIcon.textContent="🌐";
+        mediaBody.innerHTML = `<div style="padding:1rem"><div style="margin-bottom:0.8rem; font-weight:600">${title}</div><div style="display:flex; gap:0.5rem; margin-bottom:1rem"><a href="${url}" target="_blank" rel="noopener" style="padding:0.5rem 0.8rem; background:rgba(0,229,255,0.12); border:1px solid var(--border); border-radius:8px; color:var(--cyan); text-decoration:none; font-size:0.84rem">Open ${new URL(url).hostname} ↗</a><button onclick="document.getElementById('mediaBody').innerHTML='<iframe src=${JSON.stringify(url)} style=width:100%;height:360px;border:0;></iframe>'" style="padding:0.5rem 0.8rem">Try embed iframe</button></div><div style="font-size:0.8rem; color:var(--muted)">If iframe blocked by X-Frame-Options, the new tab already opened — website opened from the website as requested.</div></div>`;
+      }
+
+      // Auto-open in new tab as requested: play video to or open the particular website from the website
+      try{ window.open(url, "_blank", "noopener,noreferrer"); }catch{}
+    }
+
+    // ---------------- API ----------------
+    async function api(path, body, method="POST"){
+      const opts={method, headers:{"Content-Type":"application/json", Accept:"application/json"}};
+      if(body!==undefined) opts.body=JSON.stringify(body);
+      const res = await fetch(`${API}/api/v1${path}`, opts);
+      if(!res.ok){ const err=await res.json().catch(()=>({})); throw new Error(err.detail||err.message||`HTTP ${res.status}`); }
+      return res.json();
+    }
+    async function checkHealth(){
+      try{
         const s = await api("/voice/status", undefined, "GET");
-        setStatus("ok", "Online · " + (s.tts?.engine || "voice ready"));
-        $("ttsEngine").textContent = s.tts?.engine || "unknown";
+        setStatus("ok", "Online • " + (s.tts?.engine || "voice v2 humanized"));
+        $("ttsEngine").textContent = (s.tts?.engine || "jarvis-formant v2") + " • human • no crackle";
+        // Preload voices for web speech
+        if(window.speechSynthesis) window.speechSynthesis.getVoices();
         return true;
-      } catch (e) {
-        setStatus("err", "Backend offline — start: python scripts/run.py");
-        $("ttsEngine").textContent = "unreachable";
+      }catch(e){
+        setStatus("err","Backend offline — start: PYTHONPATH=. uvicorn backend.app.main:app --port 8000");
+        $("ttsEngine").textContent="unreachable";
         return false;
       }
     }
-
-    async function hearDemo() {
+    async function hearDemo(){
       setBusy(true);
-      try {
-        addMsg("system", "Requesting demo clip…");
+      try{
+        addMsg("system","Demo: requesting clean v2 clip (no crackle)…");
+        const voice = voiceSelect.value;
         const data = await api("/voice/demo", undefined, "GET");
-        addMsg("jarvis", data.text || "…");
-        await playAudio(data);
-      } catch (e) {
-        addMsg("system", "Demo failed: " + e.message);
-        setStatus("err", "Error");
-      } finally {
-        setBusy(false);
-        checkHealth();
-      }
+        // Override demo text per voice for human preview
+        const demoTexts = {
+          jarvis: "Good evening, sir. JARVIS online. Formant v2 synthesis — crackle eliminated, human-like cadence. All primary systems nominal.",
+          friday: "Hi, it's FRIDAY. All green, fully humanized now. I can play videos, open websites, and auto-send your messages to ChatGPT."
+        };
+        const text = demoTexts[voice] || data.text;
+        addMsg("jarvis", text);
+        // Try human first, then backend clean wav
+        try{ await speakWithWebSpeech(text, voice!=="friday"); }
+        catch{ await playAudioBackend(data); }
+      }catch(e){ addMsg("system","Demo failed: "+e.message); setStatus("err","Error"); }
+      finally{ setBusy(false); checkHealth(); }
     }
-
-    async function sendCommand(text) {
+    async function sendCommand(text){
       const msg = (text || input.value || "").trim();
-      if (!msg) return;
-      input.value = "";
+      if(!msg) return;
+      input.value="";
       addMsg("user", msg);
       setBusy(true);
-      try {
-        const voice = $("voiceSelect").value;
-        // Prefer skills execute for action phrases; fall back to voice command
-        // Everything goes through voice/command → orchestrator (skills + human JARVIS)
-        const data = await api("/voice/command", { text: msg, speak: true, voice });
+      try{
+        const voice = voiceSelect.value;
+        // Use skills/execute (supports play video, open website, ChatGPT auto-send)
+        const data = await api("/skills/execute", {text: msg, dry_run:false, speak:false});
         $("lastIntent").textContent = data.skill || data.intent || "chat";
-        addMsg("jarvis", data.response_text || "(no response)");
-        if (data.audio_base64 || data.data_uri) await playAudio(data);
-        else addMsg("system", "Response received but no audio payload.");
-      } catch (e) {
-        addMsg("system", "Command failed: " + e.message);
-      } finally {
-        setBusy(false);
-        checkHealth();
-      }
-    }
+        addMsg("jarvis", data.reply || "(no response)");
 
-    async function speakOnly() {
-      const msg = (input.value || "").trim();
-      if (!msg) {
-        addMsg("system", "Type something for JARVIS to speak first.");
-        return;
-      }
-      setBusy(true);
-      try {
-        const voice = $("voiceSelect").value;
-        const data = await api("/voice/speak", { text: msg, voice });
-        addMsg("jarvis", msg);
-        await playAudio(data);
-      } catch (e) {
-        addMsg("system", "Speak failed: " + e.message);
-      } finally {
-        setBusy(false);
-        checkHealth();
-      }
-    }
-
-    async function previewVoice() {
-      const voice = $("voiceSelect").value;
-      const label = $("voiceSelect").selectedOptions[0]?.text || voice;
-      setBusy(true);
-      try {
-        addMsg("system", `Previewing voice: ${label}`);
-        const samples = {
-          jarvis: "Good evening, sir. JARVIS online. All primary systems nominal.",
-          "jarvis-fast": "Status update complete. Standing by for orders.",
-          deep: "Systems online. Awaiting your command.",
-          calm: "Everything is under control. How may I assist?",
-          warm: "Hello. I'm ready whenever you need me.",
-          alert: "Warning. Attention required immediately.",
-          news: "This is your briefing for today.",
-          aria: "Hello. Aria voice profile active. How can I help you?",
-          nova: "Hi there! Nova online and ready to go.",
-          friday: "All systems green. What do you need?",
-          soft: "I'm here. Take your time.",
-          sage: "Good day. Sage voice selected. Shall we begin?",
-        };
-        const text = samples[voice] || "Voice preview sample. At your service.";
-        const data = await api("/voice/speak", { text, voice });
-        addMsg("jarvis", text);
-        await playAudio(data);
-      } catch (e) {
-        addMsg("system", "Voice preview failed: " + e.message);
-      } finally {
-        setBusy(false);
-        checkHealth();
-      }
-    }
-
-    async function loadVoicesFromApi() {
-      try {
-        const data = await api("/voice/voices", undefined, "GET");
-        if (!data.voices || !data.voices.length) return;
-        const sel = $("voiceSelect");
-        const current = sel.value;
-        sel.innerHTML = "";
-        const male = document.createElement("optgroup");
-        male.label = "Male";
-        const female = document.createElement("optgroup");
-        female.label = "Female";
-        for (const v of data.voices) {
-          const opt = document.createElement("option");
-          opt.value = v.id;
-          opt.textContent = v.label;
-          opt.title = v.description || "";
-          (v.gender === "female" ? female : male).appendChild(opt);
+        // Handle media / website / ChatGPT auto-send
+        if(data.data && data.data.url){
+          const url = data.data.url;
+          const skill = (data.skill||"").toLowerCase();
+          const lower = url.toLowerCase();
+          if(skill.includes("youtube") || skill.includes("play") || lower.includes("youtube") || lower.includes("youtu.be")){
+            openMedia(url, data.data.query || data.data.site || "YouTube Playback", "youtube");
+          } else if(lower.includes("spotify")){
+            openMedia(url, data.data.query || "Spotify", "spotify");
+          } else if(skill.includes("ask_ai") || lower.includes("chatgpt") || lower.includes("gemini") || lower.includes("claude") || lower.includes("perplexity")){
+            const provider = data.data.provider || "chatgpt";
+            openMedia(url, `${provider} — ${data.data.query?.slice(0,60)||msg.slice(0,40)}`, "chatgpt");
+          } else if(lower.startsWith("http")){
+            const title = data.data.site || data.data.place || (()=>{try{return new URL(url).hostname}catch{return url}})();
+            openMedia(url, title, "website");
+          }
         }
-        sel.appendChild(male);
-        sel.appendChild(female);
-        if ([...sel.options].some((o) => o.value === current)) sel.value = current;
-        else if (data.default) sel.value = data.default;
-      } catch (e) {
-        /* keep static options */
-      }
+
+        // Speak response human-like
+        await speakSmart(data.reply || "Done, sir.");
+
+      }catch(e){ addMsg("system","Command failed: "+e.message); }
+      finally{ setBusy(false); checkHealth(); }
+    }
+    async function speakOnly(){
+      const msg = (input.value||"").trim();
+      if(!msg){ addMsg("system","Type something for JARVIS to speak first."); return; }
+      setBusy(true);
+      try{ await speakSmart(msg); addMsg("jarvis", msg); }
+      catch(e){ addMsg("system","Speak failed: "+e.message); }
+      finally{ setBusy(false); checkHealth(); }
+    }
+    async function previewVoice(){
+      const voice = voiceSelect.value;
+      const label = voiceSelect.selectedOptions[0]?.text || voice;
+      setBusy(true);
+      try{
+        addMsg("system", `Previewing human-like voice: ${label} — crackle fixed`);
+        const samples = {
+          jarvis: "Good evening, sir. JARVIS online — deep British butler, ninety-two hertz, fully humanized. Formant v2 eliminates crackle with soft limiter and crossfade. At your service.",
+          friday: "Hey — FRIDAY here. Cool, measured, human. One hundred eighty-two hertz, no more robotic crackle. I can play videos, open any website, and auto-send your message to ChatGPT now."
+        };
+        const text = samples[voice] || "Voice preview — human-like, clean.";
+        addMsg("jarvis", text);
+        try{ await speakWithWebSpeech(text, voice!=="friday"); }
+        catch{
+          const data = await api("/voice/speak", {text, voice});
+          await playAudioBackend(data);
+        }
+      }catch(e){ addMsg("system","Voice preview failed: "+e.message); }
+      finally{ setBusy(false); checkHealth(); }
     }
 
-    // ---------------------------------------------------------------------------
-    // Browser speech recognition (voice commands → text → backend)
-    // ---------------------------------------------------------------------------
-    let recognition = null;
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      recognition = new SpeechRecognition();
-      recognition.lang = "en-US";
-      recognition.interimResults = false;
-      recognition.continuous = false;
+    // Speech recognition (STT) for voice commands
+    let recognition=null;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(SR){
+      recognition = new SR(); recognition.lang="en-US"; recognition.interimResults=false; recognition.continuous=false;
+      recognition.onstart=()=>{ $("micBtn").classList.add("listening"); $("audioState").textContent="listening (web speech)"; setStatus("busy","Listening…"); };
+      recognition.onend=()=>{ $("micBtn").classList.remove("listening"); checkHealth(); };
+      recognition.onerror=(ev)=>{ $("micBtn").classList.remove("listening"); addMsg("system","Mic error: "+(ev.error||"unknown")+". You can still type."); };
+      recognition.onresult=(ev)=>{ const said=ev.results[0][0].transcript; input.value=said; sendCommand(said); };
+    } else { $("micBtn").title="Web Speech not supported — type instead"; }
 
-      recognition.onstart = () => {
-        $("micBtn").classList.add("listening");
-        $("audioState").textContent = "listening";
-        setStatus("busy", "Listening…");
-      };
-      recognition.onend = () => {
-        $("micBtn").classList.remove("listening");
-        checkHealth();
-      };
-      recognition.onerror = (ev) => {
-        $("micBtn").classList.remove("listening");
-        addMsg("system", "Mic error: " + (ev.error || "unknown") + ". You can still type commands.");
-      };
-      recognition.onresult = (ev) => {
-        const said = ev.results[0][0].transcript;
-        input.value = said;
-        sendCommand(said);
-      };
-    } else {
-      $("micBtn").title = "Speech recognition not supported in this browser — type instead";
-    }
-
-    $("micBtn").addEventListener("click", () => {
-      if (!recognition) {
-        addMsg("system", "This browser has no Web Speech API. Type your command instead.");
-        return;
-      }
-      try {
-        recognition.start();
-      } catch (e) {
-        /* already started */
-      }
+    $("micBtn").addEventListener("click", ()=>{
+      if(!recognition){ addMsg("system","This browser has no Web Speech API. Type your command."); return; }
+      try{ recognition.start(); }catch{}
     });
-
-    // ---------------------------------------------------------------------------
-    // Wire controls
-    // ---------------------------------------------------------------------------
-    $("sendBtn").addEventListener("click", () => sendCommand());
+    $("sendBtn").addEventListener("click", ()=>sendCommand());
     $("demoBtn").addEventListener("click", hearDemo);
     $("speakBtn").addEventListener("click", speakOnly);
-    const previewBtn = $("previewVoiceBtn");
-    if (previewBtn) previewBtn.addEventListener("click", previewVoice);
-    $("clearBtn").addEventListener("click", () => {
-      logEl.innerHTML = "";
-      addMsg("system", "Log cleared.");
+    $("previewVoiceBtn").addEventListener("click", previewVoice);
+    $("stopBtn").addEventListener("click", ()=>{
+      try{ window.speechSynthesis.cancel(); }catch{}
+      try{ player.pause(); }catch{}
+      reactor.classList.remove("speaking");
+      $("audioState").textContent="stopped";
+      addMsg("system","Playback stopped.");
     });
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") sendCommand();
-    });
-    document.querySelectorAll(".quick button").forEach((btn) => {
-      btn.addEventListener("click", () => sendCommand(btn.dataset.q));
-    });
+    $("clearBtn").addEventListener("click", ()=>{ logEl.innerHTML=""; addMsg("system","Log cleared. Formant v2 clean. Voices: JARVIS + FRIDAY human-like."); });
+    input.addEventListener("keydown", (e)=>{ if(e.key==="Enter") sendCommand(); });
+    document.querySelectorAll(".quick button").forEach(btn=>{ btn.addEventListener("click", ()=>sendCommand(btn.dataset.q)); });
+    voiceSelect.addEventListener("change", updateVoiceUI);
+    $("mediaCloseBtn").addEventListener("click", ()=>{ mediaPanel.classList.remove("active"); mediaBody.innerHTML=""; mediaPreview.textContent="Media closed. Try another command."; mediaState.textContent="none"; currentMediaUrl=null; });
+    $("mediaOpenBtn").addEventListener("click", ()=>{ if(currentMediaUrl) window.open(currentMediaUrl, "_blank"); });
 
-    // Boot
-    checkHealth().then((ok) => {
-      if (ok) {
-        loadVoicesFromApi();
-        addMsg("system", "JARVIS online. Choose a Male or Female voice, click Preview voice, then command freely.");
-      } else {
-        addMsg("system", "Cannot reach backend. Run: PYTHONPATH=. uvicorn backend.app.main:app --port 8000");
-      }
+    // Load saved voice
+    const saved = localStorage.getItem("jarvis-console-voice");
+    if(saved && (saved==="jarvis"||saved==="friday")) voiceSelect.value=saved;
+    updateVoiceUI();
+    // Pre-warm web speech voices
+    if(window.speechSynthesis){ setTimeout(()=>window.speechSynthesis.getVoices(), 200); setTimeout(()=>window.speechSynthesis.getVoices(), 1000); }
+
+    checkHealth().then(ok=>{
+      if(ok){ addMsg("system","JARVIS v2 online — crackle fixed (soft limiter + crossfade). Voices: JARVIS (92Hz deep British human) + FRIDAY (182Hz cool human). Features: play video (embed + new tab), open website from website (new tab + preview), after writing to ChatGPT send the msg (auto-open chatgpt.com/?q=...). Choose voice → Preview voice → command freely."); }
+      else { addMsg("system","Cannot reach backend. Run: PYTHONPATH=. uvicorn backend.app.main:app --port 8000"); }
     });
   </script>
 </body>

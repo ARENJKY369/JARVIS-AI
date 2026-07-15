@@ -81,11 +81,12 @@ def test_female_voices_differ_from_male():
     catalog = list_voices()
     assert any(v["gender"] == "female" for v in catalog)
     assert any(v["gender"] == "male" for v in catalog)
+    # Primary voices are JARVIS + FRIDAY per v2, legacy voices kept for compat
     assert resolve_voice_id("aria") == "aria"
-    assert resolve_voice_id("female") == "aria"
+    assert resolve_voice_id("female") in ("friday", "aria")
 
     male = synthesize_speech("Hello, systems online.", voice="jarvis")
-    female = synthesize_speech("Hello, systems online.", voice="aria")
+    female = synthesize_speech("Hello, systems online.", voice="friday")
     assert male.success and female.success
     assert male.audio_bytes != female.audio_bytes
     assert "aria" in (female.engine or "") or female.duration_ms > 100

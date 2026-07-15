@@ -1,12 +1,5 @@
 """
-JARVIS OS - Browser Skills
-==========================
-
-One-command browser actions:
-  - Open YouTube
-  - Open Gmail
-  - Open arbitrary URL
-  - Web search
+JARVIS OS - Browser Skills (v2 - video play + website open from website + ChatGPT auto-send)
 """
 
 from __future__ import annotations
@@ -21,7 +14,6 @@ from .base import Skill, SkillContext, SkillResult
 
 def _open(url: str, dry_run: bool = False) -> None:
     if not dry_run:
-        # new=2 → new tab when possible
         webbrowser.open(url, new=2)
 
 
@@ -29,8 +21,7 @@ def _extract_url(text: str) -> str | None:
     m = re.search(r"https?://[^\s]+", text or "", re.I)
     if m:
         return m.group(0).rstrip(".,);]")
-    # bare domains
-    m = re.search(r"\b([a-z0-9-]+\.)+(com|org|net|io|ai|in|co|dev|app)\b", text or "", re.I)
+    m = re.search(r"\b([a-z0-9-]+\.)+(com|org|net|io|ai|in|co|dev|app|tv|me|app|gov|edu)\b", text or "", re.I)
     if m:
         return "https://" + m.group(0)
     return None
@@ -38,21 +29,56 @@ def _extract_url(text: str) -> str | None:
 
 class OpenUrlSkill(Skill):
     name = "browser.open_url"
-    description = "Open a URL in the default browser."
+    description = "Open any URL or website from the website (e.g., open github.com). Frontend opens new tab + preview."
     permissions = [Permission.AUTOMATION_BROWSER]
     examples = [
         "open url",
         "open website",
+        "open website from website",
         "go to github.com",
         "open https://example.com",
+        "open github",
+        "open site",
+        "visit",
     ]
 
+    def matches(self, text: str) -> float:
+        t = (text or "").lower()
+        # Don't steal email / contact skills
+        if re.search(r"[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}", t):
+            # If it's an email command, let email skill win
+            if re.search(r"\b(email|mail|contact|send)\b", t):
+                return 0.05
+        if re.search(r"\b(add contact|save contact)\b", t):
+            return 0.05
+        if _extract_url(t):
+            # If URL is inside an email command, lower score
+            if re.search(r"\bemail\b", t) and "@" in t:
+                return 0.2
+            return 0.97
+        if re.search(r"\b(open|launch|go to|visit|browse to)\b", t) and re.search(r"\b(website|site|url|page|link)\b", t):
+            return 0.92
+        if re.search(r"\b(open|go to|visit)\s+[a-z0-9-]+\.(com|org|net|io|ai|in|co|dev|app|tv|me)\b", t):
+            return 0.96
+        return super().matches(text)
+
     async def run(self, ctx: SkillContext) -> SkillResult:
-        url = ctx.params.get("url") or _extract_url(ctx.user_text)
+        url = ctx.params.get("url") or _extract_url(ctx.user_text or "")
         if not url:
+            mm = re.search(r"(?:open|go to|visit)\s+([a-z0-9-]+\.[a-z]{2,}(?:/[^\s]*)?)", ctx.user_text or "", re.I)
+            if mm:
+                url = "https://" + mm.group(1)
+        if not url:
+            if re.search(r"\bopen website\b", ctx.user_text or "", re.I):
+                return SkillResult(
+                    success=False,
+                    message="Which website shall I open, sir? Try 'open github.com' or 'open youtube.com'.",
+                    skill=self.name,
+                    error="MISSING_URL",
+                )
             return SkillResult(
                 success=False,
-                message="I need a URL to open, sir.",
+                message="I need a URL to open, sir. Try 'open github.com' or paste a link.",
                 skill=self.name,
                 error="MISSING_URL",
             )
@@ -61,15 +87,15 @@ class OpenUrlSkill(Skill):
         _open(url, dry_run=ctx.dry_run)
         return SkillResult(
             success=True,
-            message=f"Opening {url}, sir.",
+            message=f"Opening {url} - new tab + preview active, sir.",
             skill=self.name,
-            data={"url": url, "dry_run": ctx.dry_run},
+            data={"url": url, "dry_run": ctx.dry_run, "type": "website", "action": "open_website"},
         )
 
 
 class OpenYouTubeSkill(Skill):
     name = "browser.open_youtube"
-    description = "Open YouTube, optionally with a search query."
+    description = "Open YouTube or play a video - embeds video + opens new tab. Supports 'play X on youtube', 'play video'."
     permissions = [Permission.AUTOMATION_BROWSER]
     examples = [
         "open youtube",
@@ -78,26 +104,27 @@ class OpenYouTubeSkill(Skill):
         "play on youtube",
         "search youtube for",
         "youtube search",
+        "play video",
+        "play youtube video",
+        "play lo-fi on youtube",
+        "watch",
     ]
 
     def matches(self, text: str) -> float:
         t = (text or "").lower()
         if "youtube" in t or "you tube" in t:
             return 0.98
+        if re.search(r"\b(play|watch)\s+.*\b(video|music|song)\b", t):
+            return 0.72
         return super().matches(text)
 
     async def run(self, ctx: SkillContext) -> SkillResult:
         text = ctx.user_text or ""
         query = ctx.params.get("query")
         if not query:
-            m = re.search(
-                r"(?:youtube|you tube)(?:\s+for|\s+search)?\s+(.+)$",
-                text,
-                re.I,
-            )
+            m = re.search(r"(?:youtube|you tube)(?:\s+for|\s+search)?\s+(.+)$", text, re.I)
             if m:
                 query = m.group(1).strip(" .\"'")
-            # "play X on youtube"
             m2 = re.search(r"play\s+(.+?)\s+on\s+youtube", text, re.I)
             if m2:
                 query = m2.group(1).strip(" .\"'")
@@ -107,17 +134,23 @@ class OpenYouTubeSkill(Skill):
 
         if query:
             url = f"https://www.youtube.com/results?search_query={quote_plus(query)}"
-            msg = f"Searching YouTube for {query}, sir."
+            msg = f"Playing video search for {query} on YouTube - embed + new tab opened, sir."
         else:
             url = "https://www.youtube.com"
-            msg = "Opening YouTube, sir."
+            msg = "Opening YouTube - video player ready, sir."
 
         _open(url, dry_run=ctx.dry_run)
         return SkillResult(
             success=True,
             message=msg,
             skill=self.name,
-            data={"url": url, "query": query},
+            data={
+                "url": url,
+                "query": query,
+                "type": "youtube",
+                "action": "play_video",
+                "embed": f"https://www.youtube.com/embed?listType=search&list={quote_plus(query or '')}",
+            },
         )
 
 
@@ -136,14 +169,12 @@ class OpenGmailSkill(Skill):
     def matches(self, text: str) -> float:
         t = (text or "").lower()
         if any(k in t for k in ("gmail", "open mail", "open email", "check mail", "check email")):
-            # Don't steal "send email" — that's a future email skill
             if re.search(r"\bsend\b", t):
                 return 0.2
             return 0.96
         return super().matches(text)
 
     async def run(self, ctx: SkillContext) -> SkillResult:
-        # compose deep-link if "compose" / "write" present
         text = (ctx.user_text or "").lower()
         if "compose" in text or "write" in text or "new mail" in text:
             url = "https://mail.google.com/mail/u/0/#inbox?compose=new"
@@ -156,13 +187,13 @@ class OpenGmailSkill(Skill):
             success=True,
             message=msg,
             skill=self.name,
-            data={"url": url},
+            data={"url": url, "type": "website"},
         )
 
 
 class WebSearchSkill(Skill):
     name = "browser.search"
-    description = "Search the web with the default browser."
+    description = "Search the web with the default browser. Opens search + preview."
     permissions = [Permission.AUTOMATION_BROWSER]
     examples = [
         "search for",
@@ -191,7 +222,7 @@ class WebSearchSkill(Skill):
         _open(url, dry_run=ctx.dry_run)
         return SkillResult(
             success=True,
-            message=f"Searching the web for {query}, sir.",
+            message=f"Searching the web for {query} - opened + preview, sir.",
             skill=self.name,
-            data={"url": url, "query": query},
+            data={"url": url, "query": query, "type": "website"},
         )
