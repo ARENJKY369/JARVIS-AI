@@ -363,7 +363,7 @@
           <button data-q="set a timer for 5 minutes">⏱ Timer</button>
           <button data-q="note buy milk and call Tony">📝 Note</button>
           <button data-q="calculate 25 * 48">∑ Math</button>
-          <button data-q="Search for Iron Man">Search</button>
+          <button data-hud="true" title="Open Iron Man HUD">🎯 HUD</button>
           <button data-q="directions to airport">Maps</button>
           <button data-q="System status">Status</button>
           <button data-q="What can you do?">Help</button>
@@ -701,7 +701,13 @@
       if (e.key === "Enter") sendCommand();
     });
     document.querySelectorAll(".quick button").forEach((btn) => {
-      btn.addEventListener("click", () => sendCommand(btn.dataset.q));
+      if (btn.dataset.hud) {
+        btn.addEventListener("click", () => {
+          window.open("/console_hud", "_blank", "noopener,noreferrer");
+        });
+      } else {
+        btn.addEventListener("click", () => sendCommand(btn.dataset.q));
+      }
     });
 
     // Boot
