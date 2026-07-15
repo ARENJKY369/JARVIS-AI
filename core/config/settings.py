@@ -273,6 +273,13 @@ class UIConfig(BaseSettings):
     show_console: bool = Field(default=False)
     animation_speed: float = Field(default=1.0, ge=0.1, le=3.0)
     default_voice: str = Field(default="jarvis")
+    user_name: str = Field(
+        default="", description="Display name for the operator (e.g. Tony)."
+    )
+    user_avatar: str = Field(
+        default="",
+        description="Path or URL to the operator's profile picture (optional).",
+    )
 
 
 class EmailConfig(BaseSettings):

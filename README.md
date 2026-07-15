@@ -31,37 +31,47 @@ A production-quality, secure, extensible desktop AI operating system that:
 - Is fully modular and plugin-driven
 
 ## ✨ Key Features
-
 - **Core AI Engine**: Local LLM (Ollama) with tool-calling and long-term memory
-- **Voice Interface**: Offline formant TTS with **multiple male + female voices**, optional Whisper STT / browser mic
-- **One-command skills**: YouTube, Gmail, ChatGPT research, email drafts, timers, notes, maps…
+- **Voice Interface**: Offline formant TTS with **two Iron-Man personas** — `jarvis` (classic butler) and `friday` (cool female companion) — optional Whisper STT / browser mic
+- **One-command skills**: YouTube (+ **play any video URL**), open any **website/URL**, Gmail, ChatGPT research, email drafts, timers, notes, maps…
 - **Mission planner**: Multi-step commands (`open youtube and set a timer…`)
-- **Iron Man personality**: Calm butler tone, always addresses you as “sir”
+- **ChatGPT "write → send → tell you"**: JARVIS opens ChatGPT with your prompt pre-filled + copied to clipboard, and **speaks the answer back to you**
+- **Iron Man HUD console** (`/console_hud`): central arc-reactor, live audio visualizer, **custom operator name + profile picture**, JARVIS / FRIDAY persona picker
+- **Iron Man personality**: Calm butler tone, always addresses you as "sir"
 - **Security**: Sandboxed execution, permission system, audit logs
 - **Developer Friendly**: Clean APIs, full test coverage, quality gate 10/10
 
 ---
 
-## 🎙️ Voice profiles (choose any)
+## 🎙️ Voice profiles (JARVIS & FRIDAY only)
+
+The console ships with **two** selectable personas — the Iron Man pairing:
 
 | ID | Gender | Style |
 |----|--------|--------|
-| `jarvis` | Male | Classic deep British butler (default) |
-| `jarvis-fast` | Male | Same character, quicker |
-| `deep` | Male | Very low cinematic baritone |
-| `calm` | Male | Slow, reassuring |
-| `warm` | Male | Friendly mid-range |
-| `alert` | Male | Urgent systems voice |
-| `news` | Male | Clear broadcast style |
-| **`aria`** | **Female** | Clear confident assistant |
-| **`nova`** | **Female** | Bright energetic |
-| **`friday`** | **Female** | Cool measured AI companion |
-| **`soft`** | **Female** | Gentle lower tone |
-| **`sage`** | **Female** | Warm professional narrator |
+| `jarvis` | Male | Classic deep British butler (default Iron Man tone) |
+| `friday` | Female | Cool measured AI companion |
 
-In the console: pick a voice → **Preview voice** → send commands.  
-API: `GET /api/v1/voice/voices` · `POST /api/v1/voice/speak` with `"voice": "aria"`  
-Default: set `JARVIS_UI_DEFAULT_VOICE=friday` (or any id) in `.env`.
+In the console: pick a persona → **Preview voice** → send commands.
+API: `GET /api/v1/voice/voices` · `POST /api/v1/voice/speak` with `"voice": "friday"`.
+Default persona: set `JARVIS_UI_DEFAULT_VOICE=friday` (or `jarvis`) in `.env`.
+
+---
+
+## 🖥️ Consoles
+
+**Classic console:** `http://127.0.0.1:8000/console`
+**Iron Man HUD console:** `http://127.0.0.1:8000/console_hud`
+
+The HUD shows a central arc-reactor, a live audio visualizer while JARVIS speaks, a **custom operator name** (from `JARVIS_UI_USER_NAME`) and your **profile picture** (from `JARVIS_UI_USER_AVATAR` — a path or URL), and a JARVIS / FRIDAY persona picker.
+
+Set your operator identity in `.env`:
+```bash
+JARVIS_UI_USER_NAME=Tony
+JARVIS_UI_USER_AVATAR=/absolute/path/to/me.png
+# or a URL:
+# JARVIS_UI_USER_AVATAR=https://example.com/me.jpg
+```
 
 ---
 

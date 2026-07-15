@@ -390,34 +390,89 @@ def _clamp(x: float, lo: float = -1.0, hi: float = 1.0) -> float:
     return lo if x < lo else hi if x > hi else x
 
 
-def _formant_resonator(
-    t: float,
-    f0: float,
-    formants: Iterable[tuple[float, float]],
-    phase_base: float,
-) -> float:
+def _soft_clip(x: float) -> float:
+    """Tanh soft saturation: avoids harsh clipping while keeping headroom."""
+    return math.tanh(x)
+
+
+class _FormantFilter:
+    """Resonant (biquad) band-pass filter with persistent state.
+
+    Running state across phonemes is what removes the 'cracked' clicks
+    caused by the old per-sample additive hack.
     """
-    Additive harmonic source filtered by formant gains.
-    formants: list of (frequency_hz, gain)
+
+    def __init__(self, freq: float, bandwidth: float, gain: float, sample_rate: int) -> None:
+        self.gain = gain
+        w0 = 2.0 * math.pi * freq / sample_rate
+        bw_rad = 2.0 * math.pi * max(20.0, bandwidth) / sample_rate
+        q = math.sqrt(2.0 ** bw_rad)
+        q = max(0.5, min(20.0, q))
+        alpha = math.sin(w0) / (2.0 * q)
+        cosw0 = math.cos(w0)
+        b0 = alpha
+        b1 = 0.0
+        b2 = -alpha
+        a0 = 1.0 + alpha
+        a1 = -2.0 * cosw0
+        a2 = 1.0 - alpha
+        self.b0 = b0 / a0
+        self.b1 = b1 / a0
+        self.b2 = b2 / a0
+        self.a1 = a1 / a0
+        self.a2 = a2 / a0
+        self.x1 = 0.0
+        self.x2 = 0.0
+        self.y1 = 0.0
+        self.y2 = 0.0
+
+    def process(self, x: float) -> float:
+        y = (
+            self.b0 * x
+            + self.b1 * self.x1
+            + self.b2 * self.x2
+            - self.a1 * self.y1
+            - self.a2 * self.y2
+        )
+        self.x2 = self.x1
+        self.x1 = x
+        self.y2 = self.y1
+        self.y1 = y
+        return y
+
+
+class _SynthState:
+    """Carries running filter + glottal phase state across phoneme boundaries."""
+
+    def __init__(self, sample_rate: int) -> None:
+        self.sr = sample_rate
+        self.f1 = _FormantFilter(700, 80, 1.0, sample_rate)
+        self.f2 = _FormantFilter(1200, 110, 0.65, sample_rate)
+        self.f3 = _FormantFilter(2600, 200, 0.3, sample_rate)
+        self.prev = 0.0
+        self.phase = 0.0  # continuous glottal phase (radians)
+
+    def set_formants(self, f1: float, f2: float, f3: float) -> None:
+        self.f1 = _FormantFilter(f1, 80, 1.0, self.sr)
+        self.f2 = _FormantFilter(f2, 110, 0.65, self.sr)
+        self.f3 = _FormantFilter(f3, 200, 0.3, self.sr)
+
+
+def _glottal_pulse(phase: float) -> float:
+    """Smooth band-limited glottal source (Rosenberg-ish), continuous.
+
+    Continuity across phonemes (no per-phoneme phase reset) is the key
+    fix for the 'cracked' / robotic sound.
     """
-    if f0 <= 0:
-        return 0.0
-    sample = 0.0
-    # Harmonic series up to ~4 kHz
-    n_harm = max(1, int(4000 / f0))
-    for h in range(1, n_harm + 1):
-        freq = f0 * h
-        # Source spectrum rolls off ~ -6 dB/octave
-        amp = 1.0 / h
-        # Formant resonances (simple Lorentzian-like peaks)
-        for ff, gain in formants:
-            if ff <= 0:
-                continue
-            bw = 80.0 + ff * 0.05
-            dist = (freq - ff) / bw
-            amp += gain * math.exp(-0.5 * dist * dist) * 0.6
-        sample += amp * math.sin(2.0 * math.pi * freq * t + phase_base * h)
-    return sample
+    p = phase % (2.0 * math.pi)
+    tp = 0.6
+    if p < tp * 2.0 * math.pi:
+        x = p / (tp * 2.0 * math.pi)
+        return math.sin(math.pi * x) ** 1.3 - 0.12
+    x = (p - tp * 2.0 * math.pi) / ((1.0 - tp) * 2.0 * math.pi)
+    return -0.12 * (1.0 - x)
+
+
 
 
 def _noise(seed: int) -> float:
@@ -435,81 +490,104 @@ def _synthesize_phonemes(
     rate: float = 1.0,
     volume: float = 0.85,
 ) -> tuple[list[float], float]:
-    """Render phoneme sequence → float samples in [-1, 1]."""
+    """Render phoneme sequence -> float samples in [-1, 1].
+
+    Rewritten for natural, click-free, more human speech:
+      - continuous glottal phase carried across phonemes (no per-phoneme
+        phase reset -> this is the key fix for the 'cracked' sound)
+      - resonant formant filters with persistent state (smooth spectrum)
+      - musical raised-cosine attack/release envelopes (no boundary clicks)
+      - subtle vibrato + breathiness for a warmer, human timbre
+    """
     samples: list[float] = []
     total_ms = 0.0
-    phase = 0.0
-
-    # Sentence pitch contour: slight fall across utterance
+    st = _SynthState(sample_rate)
     n = max(1, len(phones))
 
     for idx, p in enumerate(phones):
         spec = PHONEMES.get(p, PHONEMES["AH"])
         f1, f2, f3, voiced, dur_ms, noise_amt = spec
         dur_ms = dur_ms / max(0.5, min(2.0, rate))
-        n_samp = max(1, int(sample_rate * dur_ms / 1000.0))
+        n_samp = max(2, int(sample_rate * dur_ms / 1000.0))
         total_ms += dur_ms
 
-        # Pitch: gentle downtrend + slight vibrato
+        # Pitch contour: gentle declination across the phrase
         progress = idx / n
-        f0 = base_f0 * (1.06 - 0.12 * progress)
+        f0 = base_f0 * (1.05 - 0.12 * progress)
+
+        if voiced or noise_amt < 0.9:
+            st.set_formants(f1, f2, f3)
+
+        attack = max(1, int(0.008 * sample_rate))
+        release = max(1, int(0.018 * sample_rate))
 
         for i in range(n_samp):
             t_local = i / sample_rate
-            # Envelope: short attack / longer release (soft butler tone)
-            env = 1.0
-            attack = max(1, int(0.012 * sample_rate))
-            release = max(1, int(0.025 * sample_rate))
+
+            # Smooth raised-cosine envelope -- eliminates boundary clicks.
             if i < attack:
-                env = i / attack
+                env = 0.5 - 0.5 * math.cos(math.pi * (i / attack))
             elif i > n_samp - release:
-                env = max(0.0, (n_samp - i) / release)
-
-            # Mild vibrato on longer vowels
-            if voiced and dur_ms > 90:
-                f0_now = f0 * (1.0 + 0.012 * math.sin(2 * math.pi * 4.5 * (total_ms / 1000 + t_local)))
+                r = (n_samp - i) / release
+                env = 0.5 - 0.5 * math.cos(math.pi * r)
             else:
-                f0_now = f0
+                env = 1.0
 
-            s = 0.0
-            if f1 > 0 and (voiced or noise_amt < 0.9):
-                formants = ((f1, 1.0), (f2, 0.7), (f3, 0.35))
-                s += _formant_resonator(t_local + total_ms / 1000.0, f0_now if voiced else 0.0, formants, phase)
+            if voiced:
+                vib = 1.0 + (0.006 * math.sin(2.0 * math.pi * 5.0 * (total_ms / 1000.0 + t_local))) if dur_ms > 80 else 1.0
+                st.phase += 2.0 * math.pi * (f0 * vib) / sample_rate
+                glottal = _glottal_pulse(st.phase)
+                # slight harmonic richness -> warmer, less buzzy timbre
+                src = glottal * 0.9 + 0.1 * (glottal ** 3)
+                voiced_out = st.f1.process(src) + st.f2.process(src) + st.f3.process(src)
+                s = voiced_out * 0.4
+            else:
+                s = 0.0
+                st.phase += 2.0 * math.pi * f0 / sample_rate
 
             if noise_amt > 0.0:
-                # Band-shaped noise for fricatives
-                nval = _noise(idx * 100003 + i * 17 + 91)
-                # Emphasize high frequencies for S/SH
+                nval = _noise(idx * 100003 + i * 31 + 91)
                 if p in ("S", "SH", "CH", "F", "TH", "HH"):
-                    nval = nval * 0.7 + _noise(idx * 99991 + i * 31) * 0.5
-                s += nval * noise_amt * 0.55
+                    nval = nval * 0.7 + _noise(idx * 99991 + i * 17) * 0.5
+                s += nval * noise_amt * 0.30
 
-            # Soft low-pass feel (average with previous)
-            if samples:
-                s = 0.72 * s + 0.28 * samples[-1]
+            # Continuous one-pole low-pass for warmth (state retained)
+            st.prev = 0.85 * st.prev + 0.15 * s
+            out = st.prev
 
-            samples.append(_clamp(s * env * volume * 0.22))
+            samples.append(_soft_clip(out * env * volume * 0.9))
 
-        phase += 0.37  # advance phase between phonemes for naturalness
-
-    # Gentle DC block + soft limit
+    # Gentle DC block + normalize headroom (no hard clip)
     if samples:
         mean = sum(samples) / len(samples)
-        samples = [_clamp((x - mean) * 1.15) for x in samples]
+        samples = [_clamp((x - mean) * 1.1) for x in samples]
+        peak = max(abs(s) for s in samples) or 1.0
+        samples = [_clamp(s * min(0.95 / peak, 2.0)) for s in samples]
 
     return samples, total_ms
 
 
+
+
 def _samples_to_wav(samples: list[float], sample_rate: int = 22050) -> bytes:
-    """Pack float samples as 16-bit mono PCM WAV."""
+    """Pack float samples as 16-bit mono PCM WAV with triangular dithering."""
     buf = io.BytesIO()
     with wave.open(buf, "wb") as wf:
         wf.setnchannels(1)
         wf.setsampwidth(2)
         wf.setframerate(sample_rate)
         frames = bytearray()
+        prev_dither = 0.0
         for s in samples:
-            val = int(_clamp(s) * 32767.0)
+            s = _clamp(s)
+            # Triangular-PDF dither masks quantization steps (kills 'cracking').
+            d = (_noise(id(s)) - _noise(id(s) + 7)) * (1.0 / 65536.0)
+            val = int(s * 32767.0 + d + prev_dither)
+            prev_dither = d
+            if val > 32767:
+                val = 32767
+            elif val < -32768:
+                val = -32768
             frames += struct.pack("<h", val)
         wf.writeframes(bytes(frames))
     return buf.getvalue()
@@ -522,103 +600,23 @@ def _samples_to_wav(samples: list[float], sample_rate: int = 22050) -> bytes:
 # Higher F0 ≈ brighter / more feminine; lower ≈ deeper / more masculine.
 
 VOICE_PROFILES: dict[str, dict] = {
-    # --- Male ---
+    # --- Male (Iron Man JARVIS) ---
     "jarvis": {
         "f0": 96.0,
         "rate": 0.88,
         "volume": 0.95,
         "gender": "male",
         "label": "JARVIS (Classic)",
-        "description": "Deep measured British butler — default Iron Man tone",
+        "description": "Deep measured British butler — Iron Man persona",
     },
-    "jarvis-fast": {
-        "f0": 100.0,
-        "rate": 1.08,
-        "volume": 0.95,
-        "gender": "male",
-        "label": "JARVIS Fast",
-        "description": "Same butler character, quicker cadence",
-    },
-    "calm": {
-        "f0": 90.0,
-        "rate": 0.82,
-        "volume": 0.92,
-        "gender": "male",
-        "label": "Calm Male",
-        "description": "Lower, slower, reassuring",
-    },
-    "alert": {
-        "f0": 118.0,
-        "rate": 1.05,
-        "volume": 1.0,
-        "gender": "male",
-        "label": "Alert Male",
-        "description": "Higher pitch, urgent systems voice",
-    },
-    "deep": {
-        "f0": 82.0,
-        "rate": 0.85,
-        "volume": 0.95,
-        "gender": "male",
-        "label": "Deep Male",
-        "description": "Very low cinematic baritone",
-    },
-    "warm": {
-        "f0": 105.0,
-        "rate": 0.92,
-        "volume": 0.95,
-        "gender": "male",
-        "label": "Warm Male",
-        "description": "Friendly mid-range male assistant",
-    },
-    "news": {
-        "f0": 112.0,
-        "rate": 1.0,
-        "volume": 0.95,
-        "gender": "male",
-        "label": "News Male",
-        "description": "Clear broadcast-style male",
-    },
-    # --- Female ---
-    "aria": {
-        "f0": 195.0,
-        "rate": 0.95,
-        "volume": 0.95,
-        "gender": "female",
-        "label": "Aria (Female)",
-        "description": "Clear, confident female assistant",
-    },
-    "nova": {
-        "f0": 210.0,
-        "rate": 1.0,
-        "volume": 0.95,
-        "gender": "female",
-        "label": "Nova (Female)",
-        "description": "Bright, energetic female voice",
-    },
+    # --- Female (FRIDAY-style) ---
     "friday": {
         "f0": 185.0,
         "rate": 0.93,
         "volume": 0.95,
         "gender": "female",
-        "label": "FRIDAY-style (Female)",
+        "label": "FRIDAY",
         "description": "Cool measured female AI companion",
-    },
-    "soft": {
-        "f0": 175.0,
-        "rate": 0.88,
-        "volume": 0.9,
-        "gender": "female",
-        "label": "Soft Female",
-        "description": "Gentle, lower female tone",
-    },
-    "sage": {
-        "f0": 200.0,
-        "rate": 0.9,
-        "volume": 0.93,
-        "gender": "female",
-        "label": "Sage (Female)",
-        "description": "Warm professional female narrator",
     },
 }
 
@@ -627,10 +625,9 @@ VOICE_ALIASES: dict[str, str] = {
     "default": "jarvis",
     "male": "jarvis",
     "butler": "jarvis",
-    "female": "aria",
-    "woman": "aria",
-    "girl": "nova",
-    "warning": "alert",
+    "friday": "friday",
+    "female": "friday",
+    "ai": "friday",
 }
 
 
