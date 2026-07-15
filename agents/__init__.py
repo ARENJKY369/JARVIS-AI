@@ -1,16 +1,18 @@
 """
-JARVIS OS - Autonomous Agents Package
-=====================================
+JARVIS OS - Agents
+==================
 
-Domain-specific autonomous agents that extend JARVIS capabilities.
+High-level planners that turn natural language into skill executions.
 
-Agents:
-- Orchestrator: Central task dispatcher
-- BrowserAgent: Web automation and research
-- CodingAgent: Code generation, review, and execution
-- LearningAgent: Continuous model improvement
+Also provides AgentOrchestrator as the central dispatcher for domain agents.
 """
 
 from .orchestrator import AgentOrchestrator, get_orchestrator
+from .planner import MissionPlanner, get_planner
 
-__all__ = ["AgentOrchestrator", "get_orchestrator"]
+__all__ = [
+    "AgentOrchestrator",
+    "get_orchestrator",
+    "MissionPlanner",
+    "get_planner",
+]

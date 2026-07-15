@@ -130,8 +130,14 @@ class PermissionManager:
             Permission.MEMORY_READ,
             Permission.MEMORY_WRITE,
             Permission.FILE_READ,
+            Permission.FILE_WRITE,
             Permission.VOICE_LISTEN,
             Permission.VOICE_SPEAK,
+            Permission.AUTOMATION_BROWSER,
+            Permission.AUTOMATION_EXECUTE,
+            Permission.SHELL_COMMAND,
+            Permission.NETWORK_ACCESS,  # SMTP / optional network skills in dev
+            Permission.VISION_CAPTURE,
         ]
         for p in dev_grants:
             self.grant(p, reason="development default")

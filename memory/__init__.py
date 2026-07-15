@@ -1,14 +1,21 @@
 """
-JARVIS OS - Memory Layer
-========================
+JARVIS OS - Memory Package
+==========================
 
-Long-term memory and vector storage for semantic recall.
-
-Components:
-- VectorStore: ChromaDB / LanceDB interface
-- MemoryService: High-level memory operations
+Local memory: contacts, preferences, drafts, and vector store.
 """
 
-from .vector_store import VectorStore, get_vector_store
+from .contacts import ContactBook, get_contact_book
 
-__all__ = ["VectorStore", "get_vector_store"]
+try:
+    from .vector_store import VectorStore, get_vector_store
+except Exception:  # optional if chromadb missing at import time
+    VectorStore = None  # type: ignore
+    get_vector_store = None  # type: ignore
+
+__all__ = [
+    "ContactBook",
+    "get_contact_book",
+    "VectorStore",
+    "get_vector_store",
+]

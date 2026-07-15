@@ -77,6 +77,16 @@ async def lifespan(app: FastAPI):
     logger.info(f"   Offline mode: {settings.is_offline_mode()}")
     logger.info(f"   AI Model: {settings.ai.default_model}")
 
+    # Warm up voice engine so first speak is instant
+    try:
+        from backend.services.voice_service import get_voice_service
+
+        vs = get_voice_service()
+        await vs.initialize()
+        logger.info("   Voice: jarvis-formant TTS ready (offline)")
+    except Exception as exc:
+        logger.warning(f"   Voice warmup skipped: {exc}")
+
     audit_logger.log_event(
         AuditEventType.SYSTEM_START,
         details={
@@ -220,6 +230,7 @@ def create_app() -> FastAPI:
         ("backend.routers.ai", "router", "/api/v1", ["AI"]),
         ("backend.routers.voice", "router", "/api/v1", ["Voice"]),
         ("backend.routers.memory", "router", "/api/v1", ["Memory"]),
+        ("backend.routers.skills", "router", "/api/v1", ["Skills"]),
     ]
 
     for module_name, attr, prefix, tags in routers_to_register:
@@ -246,14 +257,47 @@ def create_app() -> FastAPI:
             "version": settings.version,
             "status": "online",
             "offline": settings.is_offline_mode(),
+            "voice_console": "/console",
         }
 
-    # Serve frontend static files in production
-    if not settings.debug:
+    # Serve the voice console UI (static SPA entry)
+    try:
+        from pathlib import Path
         from fastapi.staticfiles import StaticFiles
-        frontend_dist = settings.base_dir / "frontend" / "dist"
-        if frontend_dist.exists():
-            app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="frontend")
+        from fastapi.responses import FileResponse
+
+        console_dir = Path(__file__).resolve().parents[2] / "frontend" / "public"
+        if console_dir.is_dir():
+
+            @app.get("/console", tags=["UI"], include_in_schema=False)
+            async def voice_console():
+                """JARVIS voice console — hear and command JARVIS."""
+                return FileResponse(console_dir / "index.html")
+
+            app.mount(
+                "/console-assets",
+                StaticFiles(directory=str(console_dir)),
+                name="console-assets",
+            )
+            logger.info(f"Voice console UI mounted at /console ({console_dir})")
+    except Exception as e:
+        logger.warning(f"Voice console UI not mounted: {e}")
+
+    # Serve built React frontend in production (if present)
+    if not settings.debug:
+        try:
+            from fastapi.staticfiles import StaticFiles
+
+            frontend_dist = settings.base_dir / "frontend" / "dist"
+            if frontend_dist.exists():
+                app.mount(
+                    "/",
+                    StaticFiles(directory=str(frontend_dist), html=True),
+                    name="frontend",
+                )
+        except Exception as e:
+            logger.warning(f"Frontend dist not mounted: {e}")
+
 
     return app
 
