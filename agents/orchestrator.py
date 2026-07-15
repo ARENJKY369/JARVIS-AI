@@ -1,154 +1,64 @@
 """
-JARVIS OS - Agent Orchestrator (universal command router)
-=========================================================
+JARVIS OS - Agent Orchestrator
+==============================
 
-Anything the user says goes through here:
-  1. Match a skill (browser, email, timer, note, play, …)
-  2. Else conversational JARVIS personality (human butler)
-  3. Always return a spoken-friendly reply
+Central dispatcher for all autonomous agents.
+
+Responsibilities:
+- Route tasks to appropriate domain agents
+- Manage agent lifecycle
+- Coordinate multi-step workflows
+- Enforce permissions and audit trails
 """
 
 from __future__ import annotations
 
-import time
-from dataclasses import dataclass, field
 from typing import Any
 
 from loguru import logger
 
-from skills.base import SkillContext, SkillResult
-from skills.registry import get_skill_registry, SkillRegistry
-from core.security import get_audit_logger, AuditEventType
-from agents.personality import style_skill_reply, conversational_reply
-
-
-@dataclass
-class OrchestratorResult:
-    handled: bool
-    skill: str | None
-    reply: str
-    skill_result: SkillResult | None = None
-    intent: str = "chat"
-    duration_ms: float = 0.0
-    data: dict[str, Any] = field(default_factory=dict)
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "handled": self.handled,
-            "skill": self.skill,
-            "reply": self.reply,
-            "intent": self.intent,
-            "duration_ms": self.duration_ms,
-            "data": self.data,
-            "skill_result": self.skill_result.to_dict() if self.skill_result else None,
-        }
+from core.config import get_settings
+from core.security import get_permission_manager, Permission, AuditEventType, get_audit_logger
 
 
 class AgentOrchestrator:
-    """Routes every natural-language command."""
+    """Central hub for dispatching tasks to domain agents."""
 
-    def __init__(self, registry: SkillRegistry | None = None) -> None:
-        self.registry = registry or get_skill_registry()
+    def __init__(self) -> None:
+        self.settings = get_settings()
+        self.pm = get_permission_manager()
         self.audit = get_audit_logger()
+        self._agents: dict[str, Any] = {}
+        logger.info("AgentOrchestrator initialized")
 
-    async def handle(
-        self,
-        text: str,
-        *,
-        session_id: str = "default",
-        confirmed: bool = False,
-        dry_run: bool = False,
-        force_skill: str | None = None,
-        allow_chat_fallback: bool = True,
-    ) -> OrchestratorResult:
-        start = time.perf_counter()
-        text = (text or "").strip()
-        if not text:
-            return OrchestratorResult(
-                handled=True,
-                skill=None,
-                reply="I didn't quite catch that, sir. Try again when you're ready.",
-                intent="none",
-            )
+    def register_agent(self, name: str, agent: Any) -> None:
+        """Register a domain agent."""
+        self._agents[name] = agent
+        logger.debug(f"Registered agent: {name}")
 
-        if text.lower().startswith("skill:"):
-            force_skill = text.split(":", 1)[1].strip()
-            text = force_skill
+    async def dispatch(self, task: str, context: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Dispatch a task to the appropriate agent(s)."""
+        self.pm.require(Permission.AUTOMATION_EXECUTE)
 
-        skill = None
-        if force_skill:
-            skill = self.registry.get(force_skill)
-        else:
-            # Slightly lower threshold so more casual phrases map to skills
-            skill = self.registry.match(text, threshold=0.42)
-
-        if skill:
-            ctx = SkillContext(
-                user_text=text,
-                session_id=session_id,
-                dry_run=dry_run,
-                params={"confirmed": confirmed} if confirmed else {},
-            )
-            result = await self.registry.execute(skill.name, ctx, confirmed=confirmed)
-            self.audit.log_event(
-                AuditEventType.AUTOMATION_ACTION,
-                details={
-                    "type": "skill_execute",
-                    "skill": skill.name,
-                    "success": result.success,
-                    "text": text[:120],
-                },
-                success=result.success,
-            )
-            reply = style_skill_reply(result.message)
-            if result.needs_confirmation:
-                reply = f"{reply} Say 'confirm' when you want me to proceed, sir."
-
-            return OrchestratorResult(
-                handled=True,
-                skill=skill.name,
-                reply=reply,
-                skill_result=result,
-                intent=skill.name.split(".")[0],
-                duration_ms=(time.perf_counter() - start) * 1000,
-                data=result.data,
-            )
-
-        # No skill — full conversational JARVIS (always "handled")
-        if allow_chat_fallback:
-            try:
-                from backend.services.ai_service import get_ai_service
-
-                ai = get_ai_service()
-                chat = await ai.chat(text, session_id=session_id, use_memory=True)
-                reply = chat.response
-            except Exception as exc:
-                logger.warning(f"AI chat failed: {exc}")
-                reply = conversational_reply(text)
-
-            self.audit.log_event(
-                AuditEventType.AUTOMATION_ACTION,
-                details={"type": "chat", "text": text[:120]},
-                success=True,
-            )
-            return OrchestratorResult(
-                handled=True,
-                skill="chat.jarvis",
-                reply=reply,
-                intent="chat",
-                duration_ms=(time.perf_counter() - start) * 1000,
-            )
-
-        return OrchestratorResult(
-            handled=False,
-            skill=None,
-            reply="",
-            intent="chat",
-            duration_ms=(time.perf_counter() - start) * 1000,
+        self.audit.log_event(
+            AuditEventType.AUTOMATION_ACTION,
+            details={"task": task, "agents": list(self._agents.keys())},
         )
 
-    def list_capabilities(self) -> list[dict[str, Any]]:
-        return self.registry.catalog()
+        # Simple keyword-based routing (will be replaced by LLM-based routing)
+        task_lower = task.lower()
+        if any(k in task_lower for k in ["browse", "web", "url", "site", "page"]):
+            return {"agent": "browser", "status": "dispatched", "task": task}
+        elif any(k in task_lower for k in ["code", "program", "script", "debug", "function"]):
+            return {"agent": "coding", "status": "dispatched", "task": task}
+        elif any(k in task_lower for k in ["learn", "train", "improve", "fine-tune"]):
+            return {"agent": "learning", "status": "dispatched", "task": task}
+        else:
+            return {"agent": "general", "status": "dispatched", "task": task}
+
+    def list_agents(self) -> list[str]:
+        """List all registered agents."""
+        return list(self._agents.keys())
 
 
 _orchestrator: AgentOrchestrator | None = None
@@ -159,6 +69,3 @@ def get_orchestrator() -> AgentOrchestrator:
     if _orchestrator is None:
         _orchestrator = AgentOrchestrator()
     return _orchestrator
-
-
-__all__ = ["AgentOrchestrator", "OrchestratorResult", "get_orchestrator"]

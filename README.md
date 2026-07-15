@@ -1,22 +1,14 @@
 # JARVIS OS
+**J.A.R.V.I.S. - Just A Rather Very Intelligent System**
 
-<p align="center">
-  <img src="docs/assets/jarvis_logo.png" alt="JARVIS OS Logo" width="280"/>
-</p>
-
-<p align="center">
-  <strong>J.A.R.V.I.S. — Just A Rather Very Intelligent System</strong><br/>
-  Professional, offline-first AI Desktop Operating Assistant
-</p>
-
----
+Professional, offline-first AI Desktop Operating Assistant built for production use.
 
 Inspired by the Iron Man cinematic interface — JARVIS OS brings a sophisticated, voice-controlled, multimodal AI companion directly to your desktop.
 
 **Version:** 1.0.0  
-**Status:** Production foundation (skills + voice + console)  
+**Status:** In active autonomous development (Master Loop)  
 **License:** MIT (see LICENSE)  
-**Offline-first:** Local by default (Ollama + formant/Piper TTS + SQLite)
+**Offline-first:** 100% local by default (Ollama + Whisper + Piper + SQLite + Vector DB)
 
 ---
 
@@ -30,68 +22,57 @@ A production-quality, secure, extensible desktop AI operating system that:
 - Provides a beautiful, cinematic UI
 - Is fully modular and plugin-driven
 
-## ✨ Key Features
+## ✨ Key Features (Roadmap)
 
 - **Core AI Engine**: Local LLM (Ollama) with tool-calling and long-term memory
-- **Voice Interface**: Offline formant TTS with **multiple male + female voices**, optional Whisper STT / browser mic
-- **One-command skills**: YouTube, Gmail, ChatGPT research, email drafts, timers, notes, maps…
-- **Mission planner**: Multi-step commands (`open youtube and set a timer…`)
-- **Iron Man personality**: Calm butler tone, always addresses you as “sir”
+- **Voice Interface**: Real-time STT (Whisper) + TTS (Piper) with Iron Man voice profile
+- **Vision System**: Screen understanding, OCR, object detection via OpenCV + local models
+- **Automation Engine**: Safe browser + desktop automation (Playwright + PyAutoGUI)
+- **Memory & Learning**: Vector + relational persistence with semantic recall
+- **Plugin System**: First-class extensibility
+- **Electron Desktop App**: Native cross-platform experience
 - **Security**: Sandboxed execution, permission system, audit logs
-- **Developer Friendly**: Clean APIs, full test coverage, quality gate 10/10
-
----
-
-## 🎙️ Voice profiles (choose any)
-
-| ID | Gender | Style |
-|----|--------|--------|
-| `jarvis` | Male | Classic deep British butler (default) |
-| `jarvis-fast` | Male | Same character, quicker |
-| `deep` | Male | Very low cinematic baritone |
-| `calm` | Male | Slow, reassuring |
-| `warm` | Male | Friendly mid-range |
-| `alert` | Male | Urgent systems voice |
-| `news` | Male | Clear broadcast style |
-| **`aria`** | **Female** | Clear confident assistant |
-| **`nova`** | **Female** | Bright energetic |
-| **`friday`** | **Female** | Cool measured AI companion |
-| **`soft`** | **Female** | Gentle lower tone |
-| **`sage`** | **Female** | Warm professional narrator |
-
-In the console: pick a voice → **Preview voice** → send commands.  
-API: `GET /api/v1/voice/voices` · `POST /api/v1/voice/speak` with `"voice": "aria"`  
-Default: set `JARVIS_UI_DEFAULT_VOICE=friday` (or any id) in `.env`.
+- **Developer Friendly**: Clean APIs, full test coverage, extensive docs
 
 ---
 
 ## 🏗️ Architecture Overview
 
 ```
-JARVIS-AI/
-├── agents/           # Orchestrator + mission planner + personality
-├── backend/          # FastAPI (ai, voice, skills, memory, system)
-├── core/             # Config + security (permissions, sandbox, audit)
-├── skills/           # ★ Powers: browser, apps, email, ChatGPT, utils…
-├── voice/            # Multi-voice formant TTS + voice service
-├── frontend/public/  # Voice + skills console → http://127.0.0.1:8000/console
-├── docs/             # architecture · ROADMAP · QUALITY · assets (logo)
-├── tests/ · scripts/
-└── (next) electron/ vision/ plugins/
+JarvisOS/
+├── backend/          # FastAPI Python backend (core intelligence)
+├── frontend/         # React + TypeScript + Tailwind SPA
+├── electron/         # Electron desktop shell (main + renderer)
+├── agents/           # Domain-specific autonomous agents
+├── core/             # Shared Python primitives (config, security, memory)
+├── memory/           # Vector + relational memory layer
+├── voice/            # STT / TTS services
+├── vision/           # Computer vision pipeline
+├── automation/       # Safe automation primitives
+├── browser/          # Browser automation agent
+├── coding/           # Code generation & execution agent
+├── learning/         # Continuous learning & fine-tuning
+├── plugins/          # Dynamic plugin loader & registry
+├── security/         # Permissions, sandbox, audit
+├── config/           # Centralized configuration
+├── models/           # Downloaded local AI models
+├── database/         # SQLite + LanceDB / Chroma
+├── tests/            # Comprehensive test suites
+├── docs/             # Architecture, API, guides
+├── scripts/          # Dev, build, install utilities
+└── installer/        # Cross-platform installer
 ```
 
-**One-command examples (working now):**
-- `Open YouTube` / `Open YouTube search lo-fi`
-- `Open Gmail` · `open whatsapp`
-- `ask chatgpt about machine learning`
-- `help me write a cover letter`
-- `email demo@example.com saying Hello from JARVIS`
-- `open youtube and set a timer for 5 minutes` (multi-step mission)
-- `System status` · `What time is it?`
+**Principles Applied:**
+- Clean Architecture + SOLID
+- Dependency Injection
+- Modular independence (each agent/service can run standalone)
+- Async-first (where beneficial)
+- Offline-first, zero cloud dependency for core features
+- Type-safe Python (3.11+) + TypeScript
+- Comprehensive validation at every layer
 
-**Setup guides:** [`docs/guides/email_and_voice.md`](docs/guides/email_and_voice.md) · [`.env.example`](.env.example)  
-**Roadmap:** [`docs/ROADMAP.md`](docs/ROADMAP.md) · **Architecture:** [`docs/architecture.md`](docs/architecture.md)  
-**Quality:** [`docs/QUALITY.md`](docs/QUALITY.md) · **Iron Man scope:** [`docs/IRON_MAN_OS.md`](docs/IRON_MAN_OS.md)
+See `docs/architecture.md` for deep technical details.
 
 ---
 
@@ -100,11 +81,14 @@ JARVIS-AI/
 | Layer          | Technology                          |
 |----------------|-------------------------------------|
 | Backend        | Python 3.11, FastAPI, Uvicorn, Pydantic, SQLAlchemy |
-| AI / LLM       | Ollama (local) |
-| Voice          | jarvis-formant (multi-voice), optional piper-tts, faster-whisper |
-| Memory         | SQLite, contacts JSON |
-| Frontend       | Voice console (HTML/CSS/JS), React planned |
-| Testing        | pytest, quality_gate.py |
+| AI / LLM       | Ollama (local), LangChain (local adapters) |
+| Voice          | faster-whisper, piper-tts, sounddevice |
+| Vision         | OpenCV, pytesseract, easyocr (local) |
+| Automation     | Playwright, pyautogui, pynput |
+| Memory         | SQLite, chromadb / lancedb (local vector) |
+| Frontend       | React 18, TypeScript, Tailwind CSS, Vite |
+| Desktop        | Electron 30+, electron-builder |
+| Testing        | pytest, vitest, playwright (e2e) |
 | Security       | pydantic-settings, cryptography, sandboxing |
 
 ---
@@ -113,8 +97,9 @@ JARVIS-AI/
 
 ### Prerequisites
 - Python >= 3.11
+- Node.js >= 20
 - Git
-- (Optional) Ollama + `llama3.2` for deeper chat
+- (Optional for full features) Ollama installed + `llama3.2` or `phi3` pulled
 
 ### 1. Clone & Setup
 
@@ -122,56 +107,100 @@ JARVIS-AI/
 git clone https://github.com/ARENJKY369/JARVIS-AI.git
 cd JARVIS-AI
 
+# Python environment
 python -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+
+# Node setup — Frontend
+cd frontend && npm install && cd ..
+
+# Node setup — Electron (optional)
+cd electron && npm install && cd ..
+
+# Copy environment config
+cp .env.example .env
 ```
 
-### 2. Start JARVIS
+### 2. Start Components (Development Mode)
 
+**Option A: One-command dev launcher**
 ```bash
-export PYTHONPATH=.
-# Option A
-python scripts/start_jarvis.sh
-
-# Option B
-uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+python scripts/dev.py
 ```
 
-Open the **Voice Console**:
+**Option B: Manual terminals**
+```bash
+# Terminal 1: Backend
+python -m uvicorn backend.app.main:app --reload --port 8000
 
-**http://127.0.0.1:8000/console**
+# Terminal 2: Frontend dev server
+cd frontend
+npm run dev
 
-1. Choose a **Male** or **Female** voice  
-2. Click **Preview voice**  
-3. Click **▶ Hear JARVIS** or type a command  
+# Terminal 3: Electron (optional)
+cd electron
+npm run start
+```
 
-### 3. Run Full Validation
+The frontend will be available at `http://localhost:5173` and proxies API calls to the backend at `http://127.0.0.1:8000`.
+
+### 3. Run Full Validation (after changes)
 
 ```bash
-python scripts/quality_gate.py   # must be 10/10 all dimensions
+# From root
 python scripts/validate.py
-pytest tests/unit/ -o addopts= -q
+pytest tests/
+npm --prefix frontend run test
 ```
+
+### 3. Build for Production
+
+```bash
+# Build frontend
+cd frontend
+npm run build
+
+# Run production backend (serves static frontend)
+cd ..
+python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+```
+
+### 4. Build Desktop App (Electron)
+
+```bash
+cd electron
+npm run build
+```
+
+Full installation instructions: `docs/guides/installation.md`
+
+---
+
+## 🧪 Development Workflow (Master Autonomous Loop)
+
+This project follows a strict **autonomous engineering loop**:
+1. Analyze full state
+2. Prioritize ONE module
+3. Design
+4. Implement production-grade code
+5. Validate (lint, type, syntax)
+6. Test (unit + integration)
+7. Security review
+8. Optimize
+9. Document
+10. Commit only when 100% green
+
+**Never** claim completion without passing all gates.
 
 ---
 
 ## 🎨 Branding & Assets
 
-<p align="center">
-  <img src="docs/assets/jarvis_logo.png" alt="JARVIS Logo" width="200"/>
-  &nbsp;&nbsp;
-  <img src="docs/assets/jarvis_logo_dark.png" alt="JARVIS Dark Logo" width="200"/>
-</p>
-
-| Asset | Path |
-|-------|------|
-| Primary logo | `docs/assets/jarvis_logo.png` |
-| Dark HUD logo | `docs/assets/jarvis_logo_dark.png` |
-| App icon | `docs/assets/jarvis_icon.png` |
-| Welcome audio | `docs/assets/jarvis_welcome.wav` |
-
-Colors: cyan `#00E5FF` · gold `#C9A227` · void `#05080F`
+Professional logo and Iron Man-style voice samples are located in:
+- `docs/assets/jarvis_logo.png`
+- `docs/assets/jarvis_logo_dark.png`
+- `docs/assets/jarvis_welcome.mp3` (and more)
 
 ---
 
@@ -180,7 +209,7 @@ Colors: cyan `#00E5FF` · gold `#C9A227` · void `#05080F`
 - All AI runs locally by default.
 - No telemetry.
 - Sandboxed automation.
-- Explicit user consent for privileged operations.
+- Explicit user consent for any privileged operation.
 - Full audit logging.
 
 ---
@@ -191,4 +220,14 @@ MIT License. See `LICENSE` file.
 
 ---
 
-**JARVIS OS** — *"At your service, sir."*
+## 🤝 Contributing
+
+See `docs/guides/developer_guide.md`
+
+Current status: Following Master Loop — building one module at a time.
+
+---
+
+**JARVIS OS** — "At your service, sir."
+
+*Built autonomously by the Arena engineering agent.*
