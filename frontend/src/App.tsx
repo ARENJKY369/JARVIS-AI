@@ -8,6 +8,7 @@ import {
 export default function App() {
   const [listening, setListening] = useState(false);
   const [micPulse, setMicPulse] = useState(false);
+  const [typing, setTyping] = useState(false);
   const [coreSpin, setCoreSpin] = useState(0);
   const [waveBars, setWaveBars] = useState<number[]>([]);
   const [transcript, setTranscript] = useState('');
@@ -20,24 +21,41 @@ export default function App() {
   const [ramVal, setRamVal] = useState(78);
   const [storageVal, setStorageVal] = useState(34);
   const [currentTime, setCurrentTime] = useState('');
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
 
-  // Animate core rotation
+  // Auto-scroll conversation
   useEffect(() => {
-    const id = setInterval(() => setCoreSpin(s => s + 0.5), 16);
-    return () => clearInterval(id);
-  }, []);
+    const logEl = document.getElementById('conversation-log');
+    if (logEl) logEl.scrollTop = logEl.scrollHeight;
+  }, [messages]);
 
-  // Animate waveform bars
+  // Core spins faster when listening
+  useEffect(() => {
+    const id = setInterval(() => setCoreSpin(s => s + (listening ? 1.2 : 0.5)), 16);
+    return () => clearInterval(id);
+  }, [listening]);
+
+  // Animate waveform bars — responds to mic listening
   useEffect(() => {
     const id = setInterval(() => {
       const count = 24;
-      const bars = Array.from({ length: count }, () => Math.random() * 100);
+      const bars = Array.from({ length: count }, () => {
+        if (listening) return 60 + Math.random() * 40; // high intensity when mic active
+        return 10 + Math.random() * 50; // normal idle
+      });
       setWaveBars(bars);
     }, 120);
     return () => clearInterval(id);
+  }, [listening]);
+
+  // Mouse-reactive particles
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => setMousePos({ x: e.clientX, y: e.clientY });
+    window.addEventListener('mousemove', onMove);
+    return () => window.removeEventListener('mousemove', onMove);
   }, []);
 
   // Canvas particle float
@@ -65,9 +83,20 @@ export default function App() {
       anim++;
       ctx.clearRect(0, 0, w, h);
       for (const p of particles) {
+        // Mouse interaction: particles gently repel from mouse
+        const dxMouse = p.x - mousePos.x;
+        const dyMouse = p.y - mousePos.y;
+        const distMouse = Math.sqrt(dxMouse*dxMouse + dyMouse*dyMouse);
+        if (distMouse < 120 && mousePos.x > 0) {
+          p.dx += (dxMouse / distMouse) * 0.3;
+          p.dy += (dyMouse / distMouse) * 0.3;
+        }
         p.x += p.dx; p.y += p.dy;
         if (p.x < 0 || p.x > w) p.dx *= -1;
         if (p.y < 0 || p.y > h) p.dy *= -1;
+        // Dampen
+        p.dx *= 0.995;
+        p.dy *= 0.995;
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(0, 229, 255, ${p.alpha})`;
@@ -108,9 +137,13 @@ export default function App() {
       setMessages(prev => [...prev, { role: 'user', text: result }]);
       // Auto-reply
       setTimeout(() => {
-        const reply = `Processing: "${result}" — systems nominal.`;
-        setMessages(prev => [...prev, { role: 'ai', text: reply }]);
-      }, 800);
+        setTyping(true);
+        setTimeout(() => {
+          const reply = `Processing: "${result}" — systems nominal.`;
+          setMessages(prev => [...prev, { role: 'ai', text: reply }]);
+          setTyping(false);
+        }, 800);
+      }, 400);
     };
   }, []);
 
@@ -206,7 +239,7 @@ export default function App() {
         </div>
       </nav>
 
-      <main className="relative z-10 grid grid-cols-[320px_1fr_320px] gap-6 px-6 pt-6 pb-28">
+      <main className="relative z-10 grid grid-cols-[320px_1fr_320px] gap-6 px-6 pt-6 pb-28" style={{ perspective: '1200px' }}>
         {/* LEFT PANEL — Operational Intelligence */}
         <aside className="space-y-6">
           {/* System Health */}
@@ -294,7 +327,7 @@ export default function App() {
           </div>
 
           {/* Conversation */}
-          <div className="w-full max-w-lg mt-8 rounded-2xl border border-cyan-500/15 bg-gradient-to-b from-[#0a1220]/70 to-[#03070a]/80 backdrop-blur-2xl p-6 shadow-2xl shadow-cyan-900/10">
+          <div id="conversation-log" className="w-full max-w-lg mt-8 rounded-2xl border border-cyan-500/15 bg-gradient-to-b from-[#0a1220]/70 to-[#03070a]/80 backdrop-blur-2xl p-6 shadow-2xl shadow-cyan-900/10 max-h-[420px] overflow-y-auto scrollbar-thin">
             <h2 className="text-xs uppercase tracking-[0.25em] text-cyan-400 mb-4">Conversational AI</h2>
             <div className="space-y-4">
               {messages.map((m, i) => (
@@ -316,6 +349,18 @@ export default function App() {
                   style={{ height: `${Math.max(10, h)}%`, opacity: 0.6 + (h / 200) }} />
               ))}
             </div>
+
+            {/* Typing indicator */}
+            {typing && (
+              <div className="mt-3 flex items-center gap-2 text-[10px] text-cyan-400 uppercase tracking-[0.2em] animate-[pulse_1.5s_ease-in-out_infinite]">
+                <span>AI is processing</span>
+                <span className="inline-flex gap-0.5">
+                  <span className="w-1 h-1 rounded-full bg-cyan-300 animate-[pulse_1s_ease-in-out_infinite]" />
+                  <span className="w-1 h-1 rounded-full bg-cyan-300 animate-[pulse_1s_ease-in-out_infinite]" style={{ animationDelay: '0.2s' }} />
+                  <span className="w-1 h-1 rounded-full bg-cyan-300 animate-[pulse_1s_ease-in-out_infinite]" style={{ animationDelay: '0.4s' }} />
+                </span>
+              </div>
+            )}
 
             {/* Mic + Input */}
             <div className="mt-5 flex items-center gap-3">

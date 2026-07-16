@@ -44,6 +44,15 @@
   background: rgba(0, 229, 255, 0.6);
 }
 
+/* 3D Holographic panel tilt */
+.rounded-2xl {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.rounded-2xl:hover {
+  transform: rotateY(2deg) rotateX(1deg) scale(1.01);
+  box-shadow: 0 0 30px rgba(0, 229, 255, 0.15);
+}
+
 /* Keyframes for UI animations */
 @keyframes spin {
   to { transform: rotate(360deg); }
