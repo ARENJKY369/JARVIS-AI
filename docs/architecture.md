@@ -21,7 +21,7 @@
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│  Electron Tray  ·  React HUD  ·  Voice Console (/console)    │
+│  Electron Tray  ·  Voice Console (/console)                  │
 │  Global hotkey · Arc-reactor UI · Waveforms                  │
 └────────────────────────────┬─────────────────────────────────┘
                              │ HTTP / WebSocket (localhost)
@@ -96,7 +96,7 @@ JARVIS-AI/
 | TTS | `jarvis-formant` (pure Python, audible) | Piper neural (British male) |
 | STT | Web Speech API in console | faster-whisper local |
 | Commands | Intent + skill router | LLM tool-calling |
-| UI | `/console` Iron Man HUD | Full React + Electron |
+| UI | `/console` Voice Console | Full React + Electron |
 
 ---
 

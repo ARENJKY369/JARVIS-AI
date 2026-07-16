@@ -280,14 +280,6 @@ def create_app() -> FastAPI:
                 name="console-assets",
             )
             logger.info(f"Voice console UI mounted at /console ({console_dir})")
-
-            # Iron Man HUD
-            @app.get("/console_hud", tags=["UI"], include_in_schema=False)
-            async def iron_man_hud():
-                """Iron Man HUD interface."""
-                return FileResponse(console_dir / "hud.html")
-
-            logger.info(f"Iron Man HUD mounted at /console_hud")
     except Exception as e:
         logger.warning(f"Voice console UI not mounted: {e}")
 

@@ -34,12 +34,24 @@
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #262626;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #4f4f4f;
+  background: rgba(0, 229, 255, 0.3);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #6d6d6d;
+  background: rgba(0, 229, 255, 0.6);
+}
+
+/* Keyframes for UI animations */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.05); }
+}
+@keyframes ping {
+  75%, 100% { transform: scale(2); opacity: 0; }
 }

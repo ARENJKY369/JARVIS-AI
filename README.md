@@ -74,7 +74,7 @@ JARVIS-AI/
 ├── core/             # Config + security (permissions, sandbox, audit)
 ├── skills/           # ★ Powers: browser, apps, email, ChatGPT, utils…
 ├── voice/            # Multi-voice formant TTS + voice service
-├── frontend/public/  # Voice console + Iron Man HUD → /console · /console_hud
+├── frontend/public/  # Voice console → /console
 ├── docs/             # architecture · ROADMAP · QUALITY · assets (logo)
 ├── tests/ · scripts/
 └── (next) electron/ vision/ plugins/
@@ -142,8 +142,6 @@ Open the **Voice Console**:
 
 **http://127.0.0.1:8000/console**  — Main console (chat, TTS, skills)
 
-**http://127.0.0.1:8000/console_hud**  — Iron Man HUD (arc reactor, targeting, diagnostics)
-
 1. Choose a **Male** or **Female** voice
 2. Click **Preview voice**
 3. Click **▶ Hear JARVIS** or type a command
@@ -182,7 +180,6 @@ Colors: cyan `#00E5FF` · gold `#C9A227` · void `#05080F`
 | Interface | URL | Description |
 |-----------|-----|-------------|
 | **Voice Console** | `http://127.0.0.1:8000/console` | Main voice + skills console (chat, TTS, skills) |
-| **Iron Man HUD** | `http://127.0.0.1:8000/console_hud` | Full-screen HUD: arc reactor, mission log, targeting, diagnostics, voice commands |
 
 Both served by the FastAPI backend. Open in browser after starting the server.
 
