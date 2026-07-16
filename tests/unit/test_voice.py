@@ -69,7 +69,7 @@ def test_empty_text_returns_silence():
 
 def test_voice_profiles():
     a = synthesize_speech("Status report.", voice="jarvis")
-    b = synthesize_speech("Status report.", voice="alert")
+    b = synthesize_speech("Status report.", voice="friday")
     assert a.success and b.success
     # Different profiles should produce different waveforms
     assert a.audio_bytes != b.audio_bytes
@@ -81,14 +81,14 @@ def test_female_voices_differ_from_male():
     catalog = list_voices()
     assert any(v["gender"] == "female" for v in catalog)
     assert any(v["gender"] == "male" for v in catalog)
-    assert resolve_voice_id("aria") == "aria"
-    assert resolve_voice_id("female") == "aria"
+    assert resolve_voice_id("friday") == "friday"
+    assert resolve_voice_id("female") == "friday"
 
     male = synthesize_speech("Hello, systems online.", voice="jarvis")
-    female = synthesize_speech("Hello, systems online.", voice="aria")
+    female = synthesize_speech("Hello, systems online.", voice="friday")
     assert male.success and female.success
     assert male.audio_bytes != female.audio_bytes
-    assert "aria" in (female.engine or "") or female.duration_ms > 100
+    assert "friday" in (female.engine or "") or female.duration_ms > 100
 
 
 def test_all_voice_profiles_synthesize():

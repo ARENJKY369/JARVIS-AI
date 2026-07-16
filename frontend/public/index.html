@@ -3,6 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#00E5FF" />
+  <meta name="description" content="JARVIS OS - Just A Rather Very Intelligent System. Offline-first AI Desktop Operating Assistant." />
+  <link rel="manifest" href="/console-assets/manifest.json" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>J</text></svg>" />
   <title>JARVIS OS — Voice Console</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>J</text></svg>" />
   <style>
@@ -328,22 +332,8 @@
           <button id="speakBtn">Speak text only</button>
           <button class="ghost" id="clearBtn">Clear log</button>
           <select id="voiceSelect" title="Voice profile" style="flex:0; min-width:200px">
-            <optgroup label="Male">
-              <option value="jarvis">JARVIS (Classic)</option>
-              <option value="jarvis-fast">JARVIS Fast</option>
-              <option value="deep">Deep Male</option>
-              <option value="calm">Calm Male</option>
-              <option value="warm">Warm Male</option>
-              <option value="alert">Alert Male</option>
-              <option value="news">News Male</option>
-            </optgroup>
-            <optgroup label="Female">
-              <option value="aria">Aria (Female)</option>
-              <option value="nova">Nova (Female)</option>
-              <option value="friday">FRIDAY-style</option>
-              <option value="soft">Soft Female</option>
-              <option value="sage">Sage (Female)</option>
-            </optgroup>
+            <option value="jarvis">JARVIS (Male)</option>
+            <option value="friday">FRIDAY (Female)</option>
           </select>
           <button id="previewVoiceBtn" class="ghost" title="Preview selected voice">Preview voice</button>
         </div>
@@ -368,6 +358,7 @@
           <button data-q="System status">Status</button>
           <button data-q="What can you do?">Help</button>
           <button data-q="open youtube and set a timer for 5 minutes">⚡ Mission</button>
+          <a href="/console_hud" class="hud-link" style="display:inline-flex;align-items:center;justify-content:center;padding:0.4rem 0.75rem;font-size:0.75rem;font-weight:500;color:var(--gold);background:rgba(201,162,39,0.08);border:1px solid rgba(201,162,39,0.3);border-radius:10px;cursor:pointer;transition:all 0.15s;text-decoration:none;letter-spacing:0.06em;" onmouseover="this.style.background='rgba(201,162,39,0.18)';this.style.box-shadow='var(--glow)'" onmouseout="this.style.background='rgba(201,162,39,0.08)';this.style.box-shadow='none'">🎯 Iron Man HUD</a>
         </div>
 
         <div class="meta">
@@ -380,9 +371,18 @@
     </section>
   </main>
 
-  <footer>JARVIS OS · LOCAL VOICE ENGINE · NO CLOUD REQUIRED</footer>
+    <footer>JARVIS OS · LOCAL VOICE ENGINE · NO CLOUD REQUIRED</footer>
 
   <audio id="player"></audio>
+
+  <script>
+    // Register Service Worker for PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/console-assets/pwa-sw.js').catch(() => {});
+      });
+    }
+  </script>
 
   <script>
     // ---------------------------------------------------------------------------
@@ -589,17 +589,7 @@
         addMsg("system", `Previewing voice: ${label}`);
         const samples = {
           jarvis: "Good evening, sir. JARVIS online. All primary systems nominal.",
-          "jarvis-fast": "Status update complete. Standing by for orders.",
-          deep: "Systems online. Awaiting your command.",
-          calm: "Everything is under control. How may I assist?",
-          warm: "Hello. I'm ready whenever you need me.",
-          alert: "Warning. Attention required immediately.",
-          news: "This is your briefing for today.",
-          aria: "Hello. Aria voice profile active. How can I help you?",
-          nova: "Hi there! Nova online and ready to go.",
-          friday: "All systems green. What do you need?",
-          soft: "I'm here. Take your time.",
-          sage: "Good day. Sage voice selected. Shall we begin?",
+          friday: "All systems green, sir. What do you need?",
         };
         const text = samples[voice] || "Voice preview sample. At your service.";
         const data = await api("/voice/speak", { text, voice });
