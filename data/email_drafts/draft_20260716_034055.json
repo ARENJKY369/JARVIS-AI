@@ -1,0 +1,10 @@
+{
+  "to": "demo@example.com",
+  "subject": "Hello from JARVIS API",
+  "body": "Hello from JARVIS API",
+  "created_at": "2026-07-16T03:40:55.966588",
+  "meta": {
+    "display": "demo@example.com",
+    "mode": "draft"
+  }
+}

@@ -90,37 +90,21 @@ class OpenSiteSkill(Skill):
         return 0.0
 
     async def run(self, ctx: SkillContext) -> SkillResult:
-        t = (ctx.user_text or "")
+        t = (ctx.user_text or "").lower()
         chosen = None
         url = None
-
-        # 1) Direct URL (e.g. "open https://example.com" or "open website github.com")
-        m = re.search(r"https?://[^\s]+", t)
-        if m:
-            url = m.group(0).rstrip(".,);]")
-        else:
-            # bare domain like "open website example.com"
-            m2 = re.search(r"\b([a-z0-9-]+\.)+(com|org|net|io|ai|in|co|dev|app|so|xyz)\b", t, re.I)
-            if m2:
-                url = "https://" + m2.group(0)
-        # 2) Known site name
+        # longest name first
+        for name in sorted(SITE_MAP.keys(), key=len, reverse=True):
+            if name in t:
+                chosen, url = name, SITE_MAP[name]
+                break
         if not url:
-            tl = t.lower()
-            for name in sorted(SITE_MAP.keys(), key=len, reverse=True):
-                if name in tl:
-                    chosen, url = name, SITE_MAP[name]
-                    break
-        if not url:
-            return SkillResult(False, "Which website shall I open, sir?", self.name, error="UNKNOWN_SITE")
+            return SkillResult(False, "Which site shall I open, sir?", self.name, error="UNKNOWN_SITE")
         if not ctx.dry_run:
-            try:
-                webbrowser.open(url, new=2)
-            except Exception as exc:
-                return SkillResult(False, f"Could not launch browser: {exc}", self.name, error="BROWSER_FAILED")
-        label = chosen.title() if chosen else url
+            webbrowser.open(url, new=2)
         return SkillResult(
             True,
-            f"Opening {label}, sir.",
+            f"Opening {chosen.title()}, sir.",
             self.name,
             data={"site": chosen, "url": url},
         )
@@ -540,57 +524,23 @@ class SystemActionSkill(Skill):
 
 class PlayMediaSkill(Skill):
     name = "media.play"
-    description = (
-        "Play a specific video / music via a direct URL or a YouTube / Spotify "
-        "search. Autoplays when a video URL is provided."
-    )
+    description = "Play music or video via YouTube / Spotify search."
     permissions = [Permission.AUTOMATION_BROWSER]
     examples = [
         "play lo-fi hip hop",
         "play music",
         "play despacito on youtube",
-        "play https://www.youtube.com/watch?v=xxxx",
-        "play video https://youtu.be/xxxx",
         "play something on spotify",
     ]
 
     def matches(self, text: str) -> float:
         t = (text or "").lower()
         if re.search(r"\bplay\b", t) and not re.search(r"\bplaywright\b", t):
-            # Strong match when a direct media URL is present.
-            if re.search(r"https?://\S*(youtu\.be|youtube|vimeo|spotify)", t):
-                return 0.99
             return 0.86
         return 0.0
 
     async def run(self, ctx: SkillContext) -> SkillResult:
         t = ctx.user_text or ""
-
-        # Direct video / media URL → open & autoplay immediately.
-        url_m = re.search(r"https?://\S+", t)
-        if url_m:
-            url = url_m.group(0).rstrip(".,);]")
-            # Promote a plain YouTube watch/short URL to autoplay.
-            yt = re.search(r"(youtube\.com/watch\?v=|youtu\.be/|youtube\.com/shorts/)([\w-]+)", url)
-            if yt:
-                vid = yt.group(2)
-                url = f"https://www.youtube.com/watch?v={vid}&autoplay=1"
-                msg = "Playing the video now, sir."
-            else:
-                msg = f"Opening and playing media: {url}, sir."
-            if not ctx.dry_run:
-                try:
-                    webbrowser.open(url, new=2)
-                except Exception as exc:
-                    return SkillResult(False, f"Could not launch browser: {exc}", self.name, error="BROWSER_FAILED")
-            return SkillResult(
-                True,
-                msg,
-                self.name,
-                data={"url": url, "autoplay": True, "dry_run": ctx.dry_run},
-            )
-
-        # Otherwise treat as a search query.
         query = t
         m = re.search(r"play\s+(.+?)(?:\s+on\s+(youtube|spotify))?$", t, re.I)
         target = "youtube"
@@ -606,12 +556,9 @@ class PlayMediaSkill(Skill):
         if target == "spotify":
             url = f"https://open.spotify.com/search/{quote_plus(query)}"
         else:
-            url = f"https://www.youtube.com/results?search_query={quote_plus(query)}&autoplay=1"
+            url = f"https://www.youtube.com/results?search_query={quote_plus(query)}"
         if not ctx.dry_run:
-            try:
-                webbrowser.open(url, new=2)
-            except Exception as exc:
-                return SkillResult(False, f"Could not launch browser: {exc}", self.name, error="BROWSER_FAILED")
+            webbrowser.open(url, new=2)
         return SkillResult(
             True,
             f"Playing search for {query} on {target.title()}, sir.",

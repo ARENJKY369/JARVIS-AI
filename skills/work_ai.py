@@ -116,30 +116,12 @@ def _open_provider(provider: str, query: str, dry_run: bool = False) -> str:
     if key == "chat gpt":
         key = "chatgpt"
     template = _PROVIDERS.get(key, _PROVIDERS["chatgpt"])
-
-    # Prefill the prompt so it appears in the composer (acts as the "send" step);
-    # ChatGPT's ?q= deep-link loads the prompt ready to submit.
     url = template.format(q=quote_plus(query))
-
     if not dry_run:
         try:
             webbrowser.open(url, new=2)
         except Exception as exc:
             logger.warning(f"Browser open failed: {exc}")
-        # Best-effort: copy the prompt to clipboard so the user can send in one key.
-        try:
-            import subprocess
-            import platform as _plat
-            if _plat.system() == "Linux":
-                for cmd in (["xclip", "-selection", "clipboard"], ["xsel", "--clipboard", "--input"], ["wl-copy"]):
-                    try:
-                        subprocess.run(cmd, input=query.encode(), check=True, timeout=3,
-                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                        break
-                    except Exception:
-                        continue
-        except Exception:
-            pass
     return url
 
 
@@ -269,18 +251,16 @@ class AskChatGPTSkill(Skill):
 
         q_short = query[:90] + ("…" if len(query) > 90 else "")
         if local_answer:
-            # Core change: JARVIS *tells you* ChatGPT's answer and also
-            # submits the prompt (the browser already opened it above).
             spoken = local_answer.strip()
-            if len(spoken) > 600:
-                spoken = spoken[:600].rsplit(" ", 1)[0] + "…"
+            if len(spoken) > 350:
+                spoken = spoken[:350].rsplit(" ", 1)[0] + "…"
             msg = (
-                f"Submitted to {pretty}, sir. Here is the answer: {spoken} "
-                f"I've also opened {pretty} so you can read the full thread."
+                f"Certainly, sir. Quick take: {spoken} "
+                f"I've opened {pretty} with: \"{q_short}\" for a deeper answer."
             )
         else:
             msg = (
-                f"Opening {pretty} and submitting your question: \"{q_short}\", sir. "
+                f"Certainly, sir. Opening {pretty} with your question: \"{q_short}\". "
                 f"Continue the work there — I've saved the prompt for you."
             )
 
@@ -294,7 +274,6 @@ class AskChatGPTSkill(Skill):
                 "url": url,
                 "local_answer": local_answer,
                 "saved": str(path) if path else None,
-                "submitted": True,
                 "dry_run": ctx.dry_run,
             },
         )
