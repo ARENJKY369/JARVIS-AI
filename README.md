@@ -157,7 +157,7 @@ pip install -r requirements.txt
 ### 2. Start JARVIS
 
 ```bash
-export PYTHONPATH=.
+export PYTHONPATH=. # WINDOWS-> $env:PYTHONPATH="."
 # Option A
 python scripts/start_jarvis.sh
 
