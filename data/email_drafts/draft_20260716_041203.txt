@@ -1,0 +1,5 @@
+To: demo@example.com
+Subject: Hello from JARVIS API
+Date: 2026-07-16T04:12:03.653890
+
+Hello from JARVIS API

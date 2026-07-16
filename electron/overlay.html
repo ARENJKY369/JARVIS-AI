@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JARVIS OS - HUD Overlay</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: transparent;
+      overflow: hidden;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      -webkit-app-region: drag;
+      user-select: none;
+    }
+
+    .hud-container {
+      width: 380px;
+      height: 580px;
+      background: radial-gradient(ellipse at center, rgba(0, 20, 40, 0.85) 0%, rgba(0, 10, 20, 0.9) 100%);
+      border: 1px solid rgba(0, 229, 255, 0.3);
+      border-radius: 20px;
+      padding: 20px;
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(10px);
+    }
+
+    .hud-container::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: conic-gradient(from 0deg, transparent, rgba(0, 229, 255, 0.05), transparent, rgba(0, 229, 255, 0.05), transparent);
+      animation: rotate 20s linear infinite;
+      pointer-events: none;
+    }
+
+    @keyframes rotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .hud-header {
+      text-align: center;
+      margin-bottom: 15px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .hud-title {
+      color: #00E5FF;
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      text-shadow: 0 0 10px rgba(0, 229, 255, 0.5);
+    }
+
+    .arc-reactor {
+      width: 80px;
+      height: 80px;
+      margin: 15px auto;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0, 229, 255, 0.8) 0%, rgba(0, 100, 200, 0.4) 50%, transparent 70%);
+      box-shadow: 0 0 30px rgba(0, 229, 255, 0.5), inset 0 0 20px rgba(0, 229, 255, 0.3);
+      position: relative;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .arc-reactor::before {
+      content: '';
+      position: absolute;
+      top: 15px;
+      left: 15px;
+      right: 15px;
+      bottom: 15px;
+      border-radius: 50%;
+      border: 2px solid rgba(0, 229, 255, 0.6);
+    }
+
+    .arc-reactor::after {
+      content: '';
+      position: absolute;
+      top: 25px;
+      left: 25px;
+      right: 25px;
+      bottom: 25px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.9);
+      box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
+    }
+
+    @keyframes pulse {
+      0%, 100% { box-shadow: 0 0 30px rgba(0, 229, 255, 0.5), inset 0 0 20px rgba(0, 229, 255, 0.3); }
+      50% { box-shadow: 0 0 50px rgba(0, 229, 255, 0.8), inset 0 0 30px rgba(0, 229, 255, 0.5); }
+    }
+
+    .status-panel {
+      position: relative;
+      z-index: 1;
+    }
+
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(0, 229, 255, 0.1);
+    }
+
+    .status-label {
+      color: rgba(0, 229, 255, 0.7);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .status-value {
+      color: #00E5FF;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .status-bar {
+      width: 100%;
+      height: 4px;
+      background: rgba(0, 229, 255, 0.1);
+      border-radius: 2px;
+      margin-top: 4px;
+      overflow: hidden;
+    }
+
+    .status-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #00E5FF, #00B8D4);
+      border-radius: 2px;
+      transition: width 0.5s ease;
+    }
+
+    .voice-indicator {
+      text-align: center;
+      margin-top: 15px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .voice-btn {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: rgba(0, 229, 255, 0.1);
+      border: 2px solid rgba(0, 229, 255, 0.5);
+      color: #00E5FF;
+      font-size: 20px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      -webkit-app-region: no-drag;
+    }
+
+    .voice-btn:hover {
+      background: rgba(0, 229, 255, 0.2);
+      box-shadow: 0 0 20px rgba(0, 229, 255, 0.4);
+    }
+
+    .voice-btn.listening {
+      animation: voice-pulse 1s ease-in-out infinite;
+    }
+
+    @keyframes voice-pulse {
+      0%, 100% { box-shadow: 0 0 10px rgba(0, 229, 255, 0.3); }
+      50% { box-shadow: 0 0 30px rgba(0, 229, 255, 0.8); }
+    }
+
+    .voice-text {
+      color: rgba(0, 229, 255, 0.6);
+      font-size: 10px;
+      margin-top: 8px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    .quick-actions {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 15px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .quick-btn {
+      padding: 10px 5px;
+      background: rgba(0, 229, 255, 0.05);
+      border: 1px solid rgba(0, 229, 255, 0.2);
+      border-radius: 8px;
+      color: rgba(0, 229, 255, 0.8);
+      font-size: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+      -webkit-app-region: no-drag;
+    }
+
+    .quick-btn:hover {
+      background: rgba(0, 229, 255, 0.15);
+      border-color: rgba(0, 229, 255, 0.5);
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      background: none;
+      border: none;
+      color: rgba(0, 229, 255, 0.4);
+      font-size: 16px;
+      cursor: pointer;
+      -webkit-app-region: no-drag;
+      z-index: 10;
+    }
+
+    .close-btn:hover {
+      color: rgba(0, 229, 255, 0.8);
+    }
+  </style>
+</head>
+<body>
+  <div class="hud-container">
+    <button class="close-btn" onclick="window.close()">×</button>
+
+    <div class="hud-header">
+      <div class="hud-title">JARVIS OS</div>
+      <div class="arc-reactor"></div>
+    </div>
+
+    <div class="status-panel">
+      <div class="status-row">
+        <span class="status-label">System</span>
+        <span class="status-value">ONLINE</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">Voice</span>
+        <span class="status-value">READY</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">CPU</span>
+        <span class="status-value" id="cpu-val">12%</span>
+      </div>
+      <div class="status-bar">
+        <div class="status-bar-fill" id="cpu-bar" style="width: 12%"></div>
+      </div>
+      <div class="status-row" style="margin-top: 8px;">
+        <span class="status-label">Memory</span>
+        <span class="status-value" id="mem-val">45%</span>
+      </div>
+      <div class="status-bar">
+        <div class="status-bar-fill" id="mem-bar" style="width: 45%"></div>
+      </div>
+      <div class="status-row" style="margin-top: 8px;">
+        <span class="status-label">Network</span>
+        <span class="status-value">CONNECTED</span>
+      </div>
+    </div>
+
+    <div class="voice-indicator">
+      <button class="voice-btn" id="voiceBtn" onclick="toggleListening()">🎤</button>
+      <div class="voice-text">Tap to speak</div>
+    </div>
+
+    <div class="quick-actions">
+      <button class="quick-btn" onclick="sendCommand('system status')">Status</button>
+      <button class="quick-btn" onclick="sendCommand('open youtube')">YouTube</button>
+      <button class="quick-btn" onclick="sendCommand('open gmail')">Gmail</button>
+      <button class="quick-btn" onclick="sendCommand('what time is it')">Time</button>
+      <button class="quick-btn" onclick="sendCommand('take screenshot')">Capture</button>
+      <button class="quick-btn" onclick="sendCommand('lock screen')">Lock</button>
+    </div>
+  </div>
+
+  <script>
+    let isListening = false;
+
+    function toggleListening() {
+      isListening = !isListening;
+      const btn = document.getElementById('voiceBtn');
+      if (isListening) {
+        btn.classList.add('listening');
+        btn.textContent = '🔴';
+        document.querySelector('.voice-text').textContent = 'Listening...';
+      } else {
+        btn.classList.remove('listening');
+        btn.textContent = '🎤';
+        document.querySelector('.voice-text').textContent = 'Tap to speak';
+      }
+    }
+
+    function sendCommand(cmd) {
+      // Send to main window via IPC or localStorage
+      localStorage.setItem('jarvis-command', cmd);
+      localStorage.setItem('jarvis-command-time', Date.now().toString());
+    }
+
+    // Simulate status updates
+    setInterval(() => {
+      const cpu = Math.floor(Math.random() * 30) + 5;
+      const mem = Math.floor(Math.random() * 20) + 40;
+      document.getElementById('cpu-val').textContent = cpu + '%';
+      document.getElementById('cpu-bar').style.width = cpu + '%';
+      document.getElementById('mem-val').textContent = mem + '%';
+      document.getElementById('mem-bar').style.width = mem + '%';
+    }, 3000);
+  </script>
+</body>
+</html>

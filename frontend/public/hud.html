@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#03050a" />
+  <meta name="description" content="JARVIS OS - Iron Man HUD Interface" />
+  <link rel="manifest" href="/console-assets/manifest.json" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>J</text></svg>" />
+  <title>JARVIS OS — Iron Man HUD</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>J</text></svg>" />
+  <style>
+    :root {
+      --bg: #03050a;
+      --panel: #05101a;
+      --panel-2: #081828;
+      --cyan: #00e5ff;
+      --cyan-dim: #00a8b8;
+      --gold: #c9a227;
+      --text: #d6e6f2;
+      --muted: #6b8499;
+      --danger: #ff4d6d;
+      --ok: #2ee59d;
+      --border: rgba(0, 229, 255, 0.18);
+      --glow: 0 0 24px rgba(0, 229, 255, 0.25);
+      --font: "Segoe UI", system-ui, -apple-system, sans-serif;
+      --mono: "Cascadia Code", "Fira Code", ui-monospace, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* Animated background grid */
+    .hud-bg {
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background-image:
+        linear-gradient(rgba(0, 229, 255, 0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 229, 255, 0.02) 1px, transparent 1px);
+      background-size: 40px 40px;
+      opacity: 0.6;
+    }
+
+    /* Scanning line effect */
+    .scanline {
+      position: fixed; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      opacity: 0.3;
+      animation: scan 4s linear infinite;
+      z-index: 1;
+    }
+    @keyframes scan { 0% { top: -2px; } 100% { top: 100vh; } }
+
+    /* Main HUD Container - Responsive Grid */
+    .hud-container {
+      position: relative; z-index: 10;
+      display: grid;
+      grid-template-columns: 280px 1fr 280px;
+      grid-template-rows: 90px 1fr 120px;
+      height: 100vh;
+      gap: 12px;
+      padding: 12px;
+    }
+
+    /* Panel Styling */
+    .hud-panel {
+      background: linear-gradient(135deg, var(--panel-2), var(--panel));
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      box-shadow:
+        inset 0 1px 0 rgba(0, 229, 255, 0.05),
+        0 4px 20px rgba(0, 0, 0, 0.4),
+        var(--glow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hud-panel::before {
+      content: ""; position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(0, 229, 255, 0.03), transparent);
+      pointer-events: none;
+    }
+
+    .panel-title {
+      font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--cyan-dim); margin-bottom: 10px; font-weight: 600;
+      display: flex; align-items: center; gap: 8px;
+    }
+
+    .panel-title::before {
+      content: ""; width: 8px; height: 8px; background: var(--cyan);
+      box-shadow: var(--glow); border-radius: 2px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+
+    /* TOP LEFT: System Status */
+    .sys-status { grid-column: 1; grid-row: 1; }
+
+    .status-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+    }
+    .status-item {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 4px;
+      text-align: center;
+    }
+    .status-label { font-size: 0.55rem; color: var(--muted); letter-spacing: 0.1em; }
+    .status-value { font-size: 0.8rem; font-family: var(--mono); color: var(--cyan); font-weight: 600; }
+    .status-value.warn { color: var(--gold); }
+    .status-value.err { color: var(--danger); }
+
+    /* TOP CENTER: Arc Reactor */
+    .arc-core-panel { grid-column: 2; grid-row: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
+    .arc-reactor-hud {
+      width: 70px; height: 70px; border-radius: 50%;
+      border: 2px solid var(--cyan);
+      box-shadow: inset 0 0 20px rgba(0, 229, 255, 0.2), 0 0 30px rgba(0, 229, 255, 0.3);
+      display: grid; place-items: center;
+      position: relative;
+      background: radial-gradient(circle, rgba(0, 229, 255, 0.1), transparent 70%);
+    }
+    .arc-reactor-hud::before, .arc-reactor-hud::after {
+      content: ""; position: absolute; border-radius: 50%;
+      border: 1px solid rgba(0, 229, 255, 0.25);
+    }
+    .arc-reactor-hud::before { inset: 6px; }
+    .arc-reactor-hud::after { inset: 12px; border-style: dashed; animation: spin 8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .arc-inner { width: 20px; height: 20px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #8ff, var(--cyan) 40%, #046); box-shadow: 0 0 15px var(--cyan); transition: transform 0.2s; }
+    .arc-reactor-hud.active .arc-inner { transform: scale(1.2); box-shadow: 0 0 25px var(--cyan), 0 0 50px rgba(0, 229, 255, 0.5); animation: speak-pulse 0.3s ease-in-out infinite alternate; }
+    @keyframes speak-pulse { from { transform: scale(1.1); } to { transform: scale(1.3); } }
+    .arc-label { font-size: 0.6rem; letter-spacing: 0.2em; color: var(--cyan-dim); text-transform: uppercase; }
+
+    /* TOP RIGHT: Threat Level */
+    .threat-panel { grid-column: 3; grid-row: 1; }
+    .threat-display { display: flex; align-items: center; justify-content: center; height: 50px; font-family: var(--mono); font-size: 1.5rem; font-weight: 700; color: var(--ok); letter-spacing: 0.2em; }
+    .threat-sub { text-align: center; font-size: 0.6rem; color: var(--muted); }
+
+    /* LEFT: Mission Log */
+    .mission-panel { grid-column: 1; grid-row: 2; display: flex; flex-direction: column; }
+    .mission-list { flex: 1; overflow-y: auto; font-family: var(--mono); font-size: 0.7rem; line-height: 1.6; }
+    .mission-list::-webkit-scrollbar { width: 4px; }
+    .mission-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .mission-item { padding: 5px 6px; border-left: 2px solid var(--muted); margin: 3px 0; background: rgba(0, 0, 0, 0.2); border-radius: 0 4px 4px 0; transition: all 0.2s; }
+    .mission-item:hover { border-left-color: var(--cyan); background: rgba(0, 229, 255, 0.05); }
+    .mission-item.active { border-left-color: var(--ok); background: rgba(46, 229, 157, 0.1); }
+    .mission-item .m-tag { color: var(--gold); font-weight: 600; }
+    .mission-item .m-text { color: var(--text); margin-left: 6px; }
+    .mission-item .m-time { color: var(--muted); float: right; font-size: 0.6rem; }
+
+    /* CENTER: Visual Feed */
+    .visual-panel { grid-column: 2; grid-row: 2; position: relative; }
+    .visual-feed {
+      width: 100%; height: 100%;
+      background: radial-gradient(ellipse at center, rgba(0, 50, 80, 0.3), transparent 70%), var(--panel);
+      border-radius: 4px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .targeting-reticle {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 100px; height: 100px; pointer-events: none;
+      border: 1px solid rgba(0, 229, 255, 0.3);
+      border-radius: 50%;
+    }
+    .targeting-reticle::before, .targeting-reticle::after {
+      content: ""; position: absolute; background: var(--cyan);
+    }
+    .targeting-reticle::before { top: -1px; left: 50%; width: 2px; height: 16px; transform: translateX(-50%); }
+    .targeting-reticle::after { top: 50%; left: -1px; width: 16px; height: 2px; transform: translateY(-50%); }
+    .hud-overlay-text {
+      position: absolute; bottom: 16px; left: 16px; right: 16px;
+      font-family: var(--mono); font-size: 0.65rem; color: rgba(0, 229, 255, 0.5);
+      text-align: center; letter-spacing: 0.1em;
+    }
+    .visual-center-text {
+      font-family: var(--mono); font-size: 0.85rem; color: var(--cyan-dim);
+      text-align: center; letter-spacing: 0.15em; text-transform: uppercase;
+    }
+
+    /* RIGHT: Diagnostics */
+    .diag-panel { grid-column: 3; grid-row: 2; display: flex; flex-direction: column; }
+    .diag-section { margin-bottom: 12px; }
+    .diag-label { font-size: 0.55rem; color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 6px; }
+    .diag-bar { height: 5px; background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border); border-radius: 3px; overflow: hidden; margin: 4px 0; }
+    .diag-fill { height: 100%; background: linear-gradient(90deg, var(--cyan-dim), var(--cyan)); box-shadow: 0 0 8px var(--cyan); transition: width 0.5s ease; }
+    .diag-fill.warn { background: linear-gradient(90deg, #b8860b, var(--gold)); box-shadow: 0 0 8px var(--gold); }
+    .diag-fill.err { background: linear-gradient(90deg, #b00, var(--danger)); box-shadow: 0 0 8px var(--danger); }
+    .voice-waveform { display: flex; gap: 3px; align-items: flex-end; height: 50px; justify-content: center; padding-top: 8px; }
+    .wave-bar { width: 4px; background: linear-gradient(to top, var(--cyan-dim), var(--cyan)); border-radius: 2px; transition: height 0.1s; box-shadow: 0 0 6px var(--cyan); }
+    .voice-status { text-align: center; font-size: 0.65rem; color: var(--cyan-dim); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.1em; }
+
+    /* BOTTOM: Command Bar */
+    .cmd-panel { grid-column: 1 / -1; grid-row: 3; display: flex; align-items: center; gap: 12px; }
+    .cmd-input-wrap { flex: 1; display: flex; align-items: center; gap: 10px; }
+    .cmd-prompt { font-family: var(--mono); color: var(--cyan); font-size: 0.8rem; letter-spacing: 0.1em; white-space: nowrap; }
+    .cmd-input {
+      flex: 1; background: rgba(0, 0, 0, 0.5); border: 1px solid var(--border);
+      color: var(--text); padding: 8px 12px; border-radius: 4px;
+      font-family: var(--mono); font-size: 0.85rem; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .cmd-input:focus { border-color: var(--cyan); box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.15); }
+    .cmd-btn {
+      background: linear-gradient(135deg, rgba(0, 229, 255, 0.15), rgba(0, 120, 160, 0.2));
+      border: 1px solid var(--cyan); color: var(--cyan);
+      padding: 8px 16px; border-radius: 4px; font-family: var(--mono);
+      font-size: 0.75rem; font-weight: 600; letter-spacing: 0.1em; cursor: pointer;
+      transition: all 0.15s; text-transform: uppercase;
+    }
+    .cmd-btn:hover { background: rgba(0, 229, 255, 0.25); box-shadow: var(--glow); }
+    .cmd-btn:active { transform: scale(0.98); }
+    .cmd-btn.mic { width: 40px; height: 40px; padding: 0; border-radius: 50%; display: grid; place-items: center; font-size: 1rem; }
+    .cmd-btn.mic.listening { background: rgba(255, 77, 109, 0.2); border-color: var(--danger); color: var(--danger); animation: pulse 0.8s infinite; }
+    .quick-cmds { display: flex; gap: 5px; flex-wrap: wrap; }
+    .quick-btn {
+      background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border);
+      color: var(--muted); padding: 5px 8px; border-radius: 4px;
+      font-size: 0.6rem; font-weight: 500; cursor: pointer;
+      transition: all 0.15s; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .quick-btn:hover { color: var(--cyan); border-color: var(--cyan); }
+
+    /* Quick Stats */
+    .quick-stats { display: flex; gap: 16px; font-family: var(--mono); font-size: 0.65rem; }
+    .stat { display: flex; flex-direction: column; align-items: flex-end; }
+    .stat-label { color: var(--muted); letter-spacing: 0.08em; }
+    .stat-value { color: var(--cyan); font-weight: 600; }
+
+    /* Corner brackets */
+    .hud-panel::after {
+      content: ""; position: absolute;
+      width: 16px; height: 16px; border: 1px solid var(--border);
+      opacity: 0.5;
+    }
+    .hud-panel.tl::after { top: 6px; left: 6px; border-right: none; border-bottom: none; }
+    .hud-panel.tr::after { top: 6px; right: 6px; border-left: none; border-bottom: none; }
+    .hud-panel.bl::after { bottom: 6px; left: 6px; border-right: none; border-top: none; }
+    .hud-panel.br::after { bottom: 6px; right: 6px; border-left: none; border-top: none; }
+
+    /* Navigation link to console */
+    .nav-link {
+      position: fixed; top: 12px; right: 12px; z-index: 100;
+      background: rgba(0, 0, 0, 0.6); border: 1px solid var(--border);
+      color: var(--cyan); padding: 6px 12px; border-radius: 4px;
+      font-size: 0.7rem; text-decoration: none; font-family: var(--mono);
+      letter-spacing: 0.1em; transition: all 0.15s;
+    }
+    .nav-link:hover { background: rgba(0, 229, 255, 0.15); box-shadow: var(--glow); }
+
+    .hidden { display: none !important; }
+
+    /* Responsive Design */
+    @media (max-width: 1100px) {
+      .hud-container {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: 80px 1fr 1fr 100px;
+        grid-template-areas:
+          "arc arc"
+          "sys threat"
+          "mission diag"
+          "cmd cmd";
+        height: auto;
+        min-height: 100vh;
+      }
+      .arc-core-panel { grid-area: arc; }
+      .sys-status { grid-area: sys; }
+      .threat-panel { grid-area: threat; }
+      .mission-panel { grid-area: mission; }
+      .diag-panel { grid-area: diag; }
+      .cmd-panel { grid-area: cmd; }
+      .visual-panel { display: none; }
+    }
+
+    @media (max-width: 600px) {
+      .hud-container {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto auto auto auto;
+        grid-template-areas:
+          "arc"
+          "sys"
+          "threat"
+          "mission"
+          "diag"
+          "cmd";
+      }
+      .quick-stats { display: none; }
+      .quick-cmds { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="hud-bg"></div>
+  <div class="scanline"></div>
+
+  <!-- Navigation to Console -->
+  <a href="/console" class="nav-link" title="Back to Voice Console">◀ CONSOLE</a>
+
+  <div class="hud-container">
+    <!-- TOP CENTER: Arc Reactor -->
+    <section class="hud-panel arc-core-panel">
+      <div class="arc-reactor-hud" id="arcReactor"><div class="arc-inner"></div></div>
+      <div class="arc-label">ARC REACTOR</div>
+    </section>
+
+    <!-- TOP LEFT: System Status -->
+    <section class="hud-panel sys-status tl">
+      <div class="panel-title">System Status</div>
+      <div class="status-grid">
+        <div class="status-item"><div class="status-label">CORE</div><div class="status-value" id="s-core">ONLINE</div></div>
+        <div class="status-item"><div class="status-label">VOICE</div><div class="status-value" id="s-voice">READY</div></div>
+        <div class="status-item"><div class="status-label">NET</div><div class="status-value" id="s-net">LINKED</div></div>
+        <div class="status-item"><div class="status-label">MEM</div><div class="status-value" id="s-mem">42%</div></div>
+        <div class="status-item"><div class="status-label">CPU</div><div class="status-value" id="s-cpu">18%</div></div>
+        <div class="status-item"><div class="status-label">BATT</div><div class="status-value" id="s-batt">98%</div></div>
+      </div>
+    </section>
+
+    <!-- TOP RIGHT: Threat Assessment -->
+    <section class="hud-panel threat-panel tr">
+      <div class="panel-title">Threat Level</div>
+      <div class="threat-display" id="threatLevel">MINIMAL</div>
+      <div class="threat-sub">NO HOSTILES DETECTED</div>
+    </section>
+
+    <!-- LEFT: Mission Log -->
+    <section class="hud-panel mission-panel bl">
+      <div class="panel-title">Mission Log</div>
+      <div class="mission-list" id="missionList">
+        <div class="mission-item active"><span class="m-tag">[BOOT]</span><span class="m-text">JARVIS OS initialized</span><span class="m-time">00:00:00</span></div>
+        <div class="mission-item"><span class="m-tag">[SYS]</span><span class="m-text">Voice engine loaded</span><span class="m-time">00:00:01</span></div>
+        <div class="mission-item"><span class="m-tag">[SYS]</span><span class="m-text">Skills registry ready</span><span class="m-time">00:00:02</span></div>
+        <div class="mission-item"><span class="m-tag">[NET]</span><span class="m-text">Backend connected</span><span class="m-time">00:00:03</span></div>
+        <div class="mission-item"><span class="m-tag">[HUD]</span><span class="m-text">Iron Man HUD active</span><span class="m-time">00:00:04</span></div>
+      </div>
+    </section>
+
+    <!-- CENTER: Visual Feed -->
+    <section class="hud-panel visual-panel">
+      <div class="visual-feed">
+        <div class="targeting-reticle"></div>
+        <div class="visual-center-text">TARGETING SYSTEM<br>ACTIVE</div>
+        <div class="hud-overlay-text">AWAITING COMMAND</div>
+      </div>
+    </section>
+
+    <!-- RIGHT: Diagnostics -->
+    <section class="hud-panel diag-panel br">
+      <div class="diag-section">
+        <div class="diag-label">Voice Input</div>
+        <div class="voice-waveform" id="waveform">
+          <div class="wave-bar" style="height: 8px;"></div>
+          <div class="wave-bar" style="height: 14px;"></div>
+          <div class="wave-bar" style="height: 22px;"></div>
+          <div class="wave-bar" style="height: 18px;"></div>
+          <div class="wave-bar" style="height: 10px;"></div>
+          <div class="wave-bar" style="height: 16px;"></div>
+          <div class="wave-bar" style="height: 24px;"></div>
+          <div class="wave-bar" style="height: 12px;"></div>
+        </div>
+        <div class="voice-status" id="voiceStatus">STANDBY</div>
+      </div>
+      <div class="diag-section">
+        <div class="diag-label">Core Temp</div>
+        <div class="diag-bar"><div class="diag-fill" id="tempBar" style="width: 35%;"></div></div>
+        <div style="font-size: 0.65rem; color: var(--muted); text-align: right;">35°C NOMINAL</div>
+      </div>
+      <div class="diag-section">
+        <div class="diag-label">Power Cells</div>
+        <div class="diag-bar"><div class="diag-fill" id="powerBar" style="width: 98%;"></div></div>
+        <div style="font-size: 0.65rem; color: var(--muted); text-align: right;">98% CAPACITY</div>
+      </div>
+      <div class="diag-section">
+        <div class="diag-label">Neural Link</div>
+        <div class="diag-bar"><div class="diag-fill" id="neuralBar" style="width: 87%;"></div></div>
+        <div style="font-size: 0.65rem; color: var(--muted); text-align: right;">87% SYNC</div>
+      </div>
+      <div class="diag-section">
+        <div class="diag-label">Latency</div>
+        <div class="diag-bar"><div class="diag-fill" id="latencyBar" style="width: 12%;"></div></div>
+        <div style="font-size: 0.65rem; color: var(--muted); text-align: right;">12ms RESPONSE</div>
+      </div>
+    </section>
+
+    <!-- BOTTOM: Command Bar -->
+    <section class="hud-panel cmd-panel">
+      <div class="cmd-input-wrap">
+        <span class="cmd-prompt">JARVIS&gt;</span>
+        <input type="text" class="cmd-input" id="cmdInput" placeholder="Enter command or speak..." autocomplete="off" spellcheck="false" />
+        <button class="cmd-btn" id="sendBtn">EXECUTE</button>
+        <button class="cmd-btn mic" id="micBtn" title="Click to speak">🎤</button>
+      </div>
+      <div class="quick-cmds" id="quickCmds"></div>
+      <div class="quick-stats">
+        <div class="stat"><span class="stat-label">UPTIME</span><span class="stat-value" id="uptime">00:00:04</span></div>
+        <div class="stat"><span class="stat-label">CMDS</span><span class="stat-value" id="cmdCount">0</span></div>
+        <div class="stat"><span class="stat-label">V</span><span class="stat-value">2.0.0</span></div>
+      </div>
+    </section>
+  </div>
+
+  <audio id="player"></audio>
+
+  <script>
+    // Register Service Worker for PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/console-assets/pwa-sw.js').catch(() => {});
+      });
+    }
+  </script>
+
+  <script>
+    // Configuration
+    const API = (location.port === "8000" || location.port === "")
+      ? `${location.protocol}//${location.hostname}:${location.port || 8000}`
+      : "http://127.0.0.1:8000";
+
+    const $ = (id) => document.getElementById(id);
+    const player = $("player");
+    let currentUrl = null;
+    let cmdCount = 0;
+    let startTime = Date.now();
+
+    // Elements
+    const arcReactor = $("arcReactor");
+    const cmdInput = $("cmdInput");
+    const sendBtn = $("sendBtn");
+    const micBtn = $("micBtn");
+    const missionList = $("missionList");
+    const voiceStatus = $("voiceStatus");
+    const waveform = $("waveform");
+    const threatLevel = $("threatLevel");
+    const uptimeEl = $("uptime");
+    const cmdCountEl = $("cmdCount");
+
+    // Quick commands
+    const quickCommands = [
+      { q: "Hello JARVIS", label: "HELLO" },
+      { q: "System status", label: "STATUS" },
+      { q: "Open YouTube", label: "YOUTUBE" },
+      { q: "Open Gmail", label: "GMAIL" },
+      { q: "Play lo-fi hip hop", label: "MUSIC" },
+      { q: "Set timer 5 min", label: "TIMER" },
+      { q: "What can you do?", label: "HELP" },
+    ];
+
+    function initQuickCmds() {
+      const container = $("quickCmds");
+      quickCommands.forEach(({ q, label }) => {
+        const btn = document.createElement("button");
+        btn.className = "quick-btn";
+        btn.textContent = label;
+        btn.onclick = () => sendCommand(q);
+        container.appendChild(btn);
+      });
+    }
+
+    function addMission(tag, text, active = false) {
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const div = document.createElement("div");
+      div.className = "mission-item" + (active ? " active" : "");
+      div.innerHTML = `<span class="m-tag">[${tag}]</span><span class="m-text">${text}</span><span class="m-time">${time}</span>`;
+      missionList.insertBefore(div, missionList.firstChild);
+      while (missionList.children.length > 20) missionList.lastChild.remove();
+    }
+
+    function setStatus(key, value, warn = false, err = false) {
+      const el = $(`s-${key}`);
+      if (el) {
+        el.textContent = value;
+        el.className = "status-value" + (warn ? " warn" : "") + (err ? " err" : "");
+      }
+    }
+
+    function updateUptime() {
+      const ms = Date.now() - startTime;
+      const s = Math.floor(ms / 1000) % 60;
+      const m = Math.floor(ms / 60000) % 60;
+      const h = Math.floor(ms / 3600000);
+      uptimeEl.textContent = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function animateWaveform(active) {
+      const bars = waveform.querySelectorAll(".wave-bar");
+      if (active) {
+        bars.forEach((bar, i) => {
+          const animate = () => {
+            if (micBtn.classList.contains("listening")) {
+              bar.style.height = (Math.random() * 30 + 4) + "px";
+              requestAnimationFrame(animate);
+            } else {
+              bar.style.height = "8px";
+            }
+          };
+          setTimeout(animate, i * 30);
+        });
+      } else {
+        bars.forEach(bar => { bar.style.height = "8px"; });
+      }
+    }
+
+    async function playAudio({ data_uri, audio_base64 }) {
+      return new Promise((resolve, reject) => {
+        let src = data_uri;
+        if (!src && audio_base64) {
+          src = `data:audio/wav;base64,${audio_base64}`;
+        }
+        if (!src) { reject(new Error("No audio payload")); return; }
+
+        if (currentUrl && currentUrl.startsWith("blob:")) URL.revokeObjectURL(currentUrl);
+
+        if (audio_base64) {
+          try {
+            const binary = atob(audio_base64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            const blob = new Blob([bytes], { type: "audio/wav" });
+            src = URL.createObjectURL(blob);
+            currentUrl = src;
+          } catch (e) { console.warn("Blob conversion failed", e); }
+        }
+
+        player.src = src;
+        player.onended = () => {
+          arcReactor.classList.remove("active");
+          voiceStatus.textContent = "STANDBY";
+          animateWaveform(false);
+          resolve();
+        };
+        player.onerror = (e) => {
+          arcReactor.classList.remove("active");
+          voiceStatus.textContent = "ERROR";
+          animateWaveform(false);
+          reject(new Error("Audio playback failed"));
+        };
+        player.onplay = () => {
+          arcReactor.classList.add("active");
+          voiceStatus.textContent = "SPEAKING";
+        };
+
+        const p = player.play();
+        if (p && p.catch) {
+          p.catch((err) => {
+            arcReactor.classList.remove("active");
+            voiceStatus.textContent = "BLOCKED";
+            addMission("ERR", "Autoplay blocked - click EXECUTE again");
+            reject(err);
+          });
+        }
+      });
+    }
+
+    async function api(path, body, method = "POST") {
+      const opts = { method, headers: { "Content-Type": "application/json", Accept: "application/json" } };
+      if (body !== undefined) opts.body = JSON.stringify(body);
+      const res = await fetch(`${API}/api/v1${path}`, opts);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || err.message || `HTTP ${res.status}`);
+      }
+      return res.json();
+    }
+
+    async function checkHealth() {
+      try {
+        const s = await api("/voice/status", undefined, "GET");
+        setStatus("voice", "ONLINE");
+        setStatus("net", "LINKED");
+        setStatus("core", "ONLINE");
+        return true;
+      } catch (e) {
+        setStatus("voice", "OFFLINE", false, true);
+        setStatus("net", "DOWN", false, true);
+        setStatus("core", "DEGRADED", true);
+        return false;
+      }
+    }
+
+    async function sendCommand(text) {
+      const msg = (text || cmdInput.value || "").trim();
+      if (!msg) return;
+      cmdInput.value = "";
+      cmdCount++; cmdCountEl.textContent = cmdCount;
+
+      addMission("CMD", msg);
+      voiceStatus.textContent = "PROCESSING";
+
+      try {
+        const data = await api("/voice/command", { text: msg, speak: true });
+        addMission("JARVIS", data.response_text || "(no response)");
+        if (data.audio_base64 || data.data_uri) await playAudio(data);
+        else addMission("SYS", "Response received - no audio payload");
+      } catch (e) {
+        addMission("ERR", "Command failed: " + e.message);
+      }
+      voiceStatus.textContent = "STANDBY";
+    }
+
+    // Speech Recognition
+    let recognition = null;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.lang = "en-US";
+      recognition.interimResults = false;
+      recognition.continuous = false;
+      recognition.onstart = () => {
+        micBtn.classList.add("listening");
+        voiceStatus.textContent = "LISTENING";
+        animateWaveform(true);
+      };
+      recognition.onend = () => {
+        micBtn.classList.remove("listening");
+        animateWaveform(false);
+        checkHealth();
+      };
+      recognition.onerror = (ev) => {
+        micBtn.classList.remove("listening");
+        animateWaveform(false);
+        addMission("ERR", "Mic error: " + (ev.error || "unknown"));
+      };
+      recognition.onresult = (ev) => {
+        const said = ev.results[0][0].transcript;
+        cmdInput.value = said;
+        sendCommand(said);
+      };
+    } else {
+      micBtn.title = "Speech recognition not supported";
+      micBtn.style.opacity = "0.4";
+    }
+
+    micBtn.addEventListener("click", () => {
+      if (!recognition) { addMission("ERR", "No Web Speech API"); return; }
+      try { recognition.start(); } catch (e) {}
+    });
+
+    sendBtn.addEventListener("click", () => sendCommand());
+    cmdInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendCommand(); });
+
+    // Initialize
+    initQuickCmds();
+    checkHealth().then(ok => {
+      if (ok) addMission("SYS", "HUD fully operational - all systems nominal");
+      else addMission("WRN", "Backend unreachable - start: python scripts/run.py", true);
+    });
+
+    // Update loops
+    setInterval(updateUptime, 1000);
+    setInterval(() => checkHealth(), 30000);
+
+    // Simulate dynamic diagnostic bars
+    setInterval(() => {
+      $("tempBar").style.width = (30 + Math.random() * 10) + "%";
+      $("powerBar").style.width = (95 + Math.random() * 5) + "%";
+      $("neuralBar").style.width = (80 + Math.random() * 15) + "%";
+      $("latencyBar").style.width = (5 + Math.random() * 20) + "%";
+    }, 3000);
+  </script>
+</body>
+</html>
