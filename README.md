@@ -140,7 +140,8 @@ uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 
 Open the **Voice Console**:
 
-**http://127.0.0.1:8000/console**  — Main console (chat, TTS, skills)
+**http://127.0.0.1:8000/console**  — Main console (chat, TTS, skills)  
+**http://127.0.0.1:8000/console_hud**  — Cinematic HUD (holographic AI core, voice, system panels)
 
 1. Choose a **Male** or **Female** voice
 2. Click **Preview voice**
@@ -180,6 +181,7 @@ Colors: cyan `#00E5FF` · gold `#C9A227` · void `#05080F`
 | Interface | URL | Description |
 |-----------|-----|-------------|
 | **Voice Console** | `http://127.0.0.1:8000/console` | Main voice + skills console (chat, TTS, skills) |
+| **HUD Console** | `http://127.0.0.1:8000/console_hud` | Cinematic holographic AI core interface |
 
 Both served by the FastAPI backend. Open in browser after starting the server.
 
