@@ -669,28 +669,41 @@ def _post_process_jarvis(samples: list[float], *, feminine: bool = False) -> lis
     """
     Tone shaping: warm butler (male) or brighter presence (female).
     Keeps everything pure-Python / offline.
+    Enhanced smoothing to eliminate harsh/cracked artifacts.
     """
     if not samples:
         return samples
     out: list[float] = []
     prev = 0.0
     lp = 0.0  # one-pole lowpass state for warmth
+    # Additional smoother second-order lowpass for harshness reduction
+    lp2 = 0.0
     for x in samples:
+        # Gentle second-order smoothing filter (cutoff ~1.5kHz feel)
+        alpha = 0.35 if feminine else 0.28
+        lp = alpha * x + (1 - alpha) * lp
+        lp2 = alpha * lp + (1 - alpha) * lp2
+        warm = 0.65 * lp2 + 0.35 * lp
+        # Very gentle saturation instead of hard tanh
         if feminine:
-            # Brighter: less low-shelf, slight presence lift
-            lp = 0.75 * lp + 0.25 * x
-            warm = 0.72 * x + 0.28 * lp
-            y = math.tanh(warm * 1.25) * 0.95
-            y = 0.88 * y + 0.12 * prev
+            y = math.tanh(warm * 0.9) * 0.92
+            y = 0.92 * y + 0.08 * prev
         else:
-            lp = 0.88 * lp + 0.12 * x
-            warm = 0.55 * x + 0.45 * lp
-            y = math.tanh(warm * 1.35) * 0.92
-            y = 0.82 * y + 0.18 * prev
+            y = math.tanh(warm * 1.15) * 0.94
+            y = 0.85 * y + 0.15 * prev
         prev = y
         out.append(_clamp(y))
+    # Final gentle DC block + very soft limiter
+    mean = sum(out) / len(out)
+    out = [_clamp((x - mean) * 1.1) for x in out]
+    # Slight fade-in/fade-out for perfect edges
+    fade = int(0.003 * len(out))
+    for i in range(fade):
+        out[i] *= (i + 1) / (fade + 1)
+    for i in range(fade):
+        out[-(i + 1)] *= (i + 1) / (fade + 1)
     peak = max(abs(s) for s in out) or 1.0
-    gain = min(0.9 / peak, 2.5)
+    gain = min(0.92 / peak, 2.2)
     return [_clamp(s * gain) for s in out]
 
 
