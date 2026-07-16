@@ -151,10 +151,6 @@ def _load_builtin_skills(reg: SkillRegistry) -> None:
         RememberSkill,
     )
     from .work_ai import AskChatGPTSkill, OpenChatGPTSkill
-    from .smart_home_skill import SmartHomeSkill
-    from .calendar_skill import CalendarSkill, ReminderSkill
-    from .desktop_gui_skill import DesktopGUISkill
-    from .vision_skill import VisionSkill
 
     reg.register_many(
         [
@@ -184,15 +180,6 @@ def _load_builtin_skills(reg: SkillRegistry) -> None:
             ClipboardSkill(),
             ScreenshotSkill(),
             RememberSkill(),
-            # Smart home / IoT
-            SmartHomeSkill(),
-            # Calendar / scheduling
-            CalendarSkill(),
-            ReminderSkill(),
-            # Desktop GUI automation
-            DesktopGUISkill(),
-            # Vision / camera
-            VisionSkill(),
         ]
     )
 
