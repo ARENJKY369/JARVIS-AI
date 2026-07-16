@@ -10,7 +10,19 @@ export default function App() {
   const [micPulse, setMicPulse] = useState(false);
   const [coreSpin, setCoreSpin] = useState(0);
   const [waveBars, setWaveBars] = useState<number[]>([]);
+  const [transcript, setTranscript] = useState('');
+  const [messages, setMessages] = useState([
+    { role: 'ai', text: 'Good evening, sir. All primary systems nominal. How may I assist you?' },
+    { role: 'user', text: 'Launch file manager and show system diagnostics.' },
+  ]);
+  const [cpuVal, setCpuVal] = useState(42);
+  const [gpuVal, setGpuVal] = useState(68);
+  const [ramVal, setRamVal] = useState(78);
+  const [storageVal, setStorageVal] = useState(34);
+  const [currentTime, setCurrentTime] = useState('');
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   // Animate core rotation
   useEffect(() => {
@@ -66,11 +78,90 @@ export default function App() {
     loop();
   }, []);
 
+  // SpeechRecognition setup
+  useEffect(() => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+    const rec = new SpeechRecognition();
+    rec.continuous = false;
+    rec.interimResults = false;
+    rec.lang = 'en-US';
+    recognitionRef.current = rec;
+
+    rec.onstart = () => {
+      setListening(true);
+      setMicPulse(true);
+      setTimeout(() => setMicPulse(false), 600);
+    };
+    rec.onend = () => {
+      setListening(false);
+      setMicPulse(false);
+    };
+    rec.onerror = (e: any) => {
+      console.warn('Speech recognition error:', e.error);
+      setListening(false);
+      setMicPulse(false);
+    };
+    rec.onresult = (event: any) => {
+      const result = event.results[0][0].transcript;
+      setTranscript(result);
+      setMessages(prev => [...prev, { role: 'user', text: result }]);
+      // Auto-reply
+      setTimeout(() => {
+        const reply = `Processing: "${result}" — systems nominal.`;
+        setMessages(prev => [...prev, { role: 'ai', text: reply }]);
+      }, 800);
+    };
+  }, []);
+
   const toggleMic = () => {
-    setListening(!listening);
-    setMicPulse(true);
-    setTimeout(() => setMicPulse(false), 600);
+    if (!recognitionRef.current) {
+      alert('Speech recognition is not supported in this browser.');
+      return;
+    }
+    if (listening) {
+      recognitionRef.current.stop();
+    } else {
+      recognitionRef.current.start();
+    }
   };
+
+  // Live clock
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date();
+      setCurrentTime(now.toLocaleTimeString('en-US', { hour12: false }) + ' UTC');
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Interactive gauges
+  const handleGaugeClick = (label: string) => {
+    if (label === 'CPU') setCpuVal(prev => Math.min(100, prev + Math.floor(Math.random() * 15)));
+    if (label === 'GPU') setGpuVal(prev => Math.min(100, prev + Math.floor(Math.random() * 10)));
+    if (label === 'RAM') setRamVal(prev => Math.min(100, prev + Math.floor(Math.random() * 8)));
+    if (label === 'Storage') setStorageVal(prev => Math.max(0, prev - Math.floor(Math.random() * 5)));
+  };
+
+  // Keyboard send
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && inputRef.current === document.activeElement) {
+        const text = inputRef.current?.value.trim();
+        if (text) {
+          setMessages(prev => [...prev, { role: 'user', text }]);
+          inputRef.current!.value = '';
+          setTimeout(() => {
+            setMessages(prev => [...prev, { role: 'ai', text: `Understood: "${text}". Executing...` }]);
+          }, 600);
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   return (
     <div className="relative min-h-screen w-full overflow-hidden bg-[#03070a] text-[#d6e6f2] font-sans selection:bg-cyan-400/30">
@@ -96,6 +187,9 @@ export default function App() {
           <a href="#" className="text-xs uppercase tracking-[0.2em] text-cyan-300 hover:text-white transition-colors">Controls</a>
           <a href="#" className="text-xs uppercase tracking-[0.2em] text-cyan-300 hover:text-white transition-colors">Devices</a>
         </div>
+        <div className="flex items-center gap-4 text-xs text-cyan-300 font-mono">
+          <span>{currentTime}</span>
+        </div>
         <div className="flex items-center gap-4">
           {[
             { icon: Settings, label: 'Settings' },
@@ -119,10 +213,10 @@ export default function App() {
           <section className="rounded-2xl border border-cyan-500/15 bg-gradient-to-br from-[#0a1220]/80 to-[#03070a]/80 backdrop-blur-2xl p-5 shadow-2xl shadow-cyan-900/10">
             <h3 className="text-[10px] uppercase tracking-[0.2em] text-cyan-400 mb-4">System Health</h3>
             <div className="grid grid-cols-2 gap-4">
-              <Gauge label="CPU" value={42} color="#00e5ff" />
-              <Gauge label="GPU" value={68} color="#0099ff" />
-              <Gauge label="RAM" value={78} color="#00e5ff" />
-              <Gauge label="Storage" value={34} color="#0099ff" />
+              <button onClick={() => handleGaugeClick('CPU')}><Gauge label="CPU" value={cpuVal} color="#00e5ff" /></button>
+              <button onClick={() => handleGaugeClick('GPU')}><Gauge label="GPU" value={gpuVal} color="#0099ff" /></button>
+              <button onClick={() => handleGaugeClick('RAM')}><Gauge label="RAM" value={ramVal} color="#00e5ff" /></button>
+              <button onClick={() => handleGaugeClick('Storage')}><Gauge label="Storage" value={storageVal} color="#0099ff" /></button>
             </div>
             <div className="mt-4 flex items-center gap-3">
               <div className="w-8 h-8 rounded-full border-2 border-cyan-400/30 flex items-center justify-center text-[10px] font-bold text-cyan-300">92%</div>
@@ -203,18 +297,16 @@ export default function App() {
           <div className="w-full max-w-lg mt-8 rounded-2xl border border-cyan-500/15 bg-gradient-to-b from-[#0a1220]/70 to-[#03070a]/80 backdrop-blur-2xl p-6 shadow-2xl shadow-cyan-900/10">
             <h2 className="text-xs uppercase tracking-[0.25em] text-cyan-400 mb-4">Conversational AI</h2>
             <div className="space-y-4">
-              <div className="flex gap-3 items-start">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-400 to-blue-500 flex items-center justify-center text-xs font-bold">AI</div>
-                <div className="bg-[#0a1220]/60 border border-cyan-500/10 rounded-xl px-4 py-3 text-sm text-cyan-50 shadow-inner">
-                  Good evening, sir. All primary systems nominal. How may I assist you?
+              {messages.map((m, i) => (
+                <div key={i} className="flex gap-3 items-start">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${m.role === 'ai' ? 'bg-gradient-to-tr from-cyan-400 to-blue-500' : 'bg-gradient-to-tr from-amber-400 to-amber-600'}`}>
+                    {m.role === 'ai' ? 'AI' : 'ME'}
+                  </div>
+                  <div className="bg-[#0a1220]/60 border border-cyan-500/10 rounded-xl px-4 py-3 text-sm text-cyan-50 shadow-inner">
+                    {m.text}
+                  </div>
                 </div>
-              </div>
-              <div className="flex gap-3 items-start">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-amber-400 to-amber-600 flex items-center justify-center text-xs font-bold">ME</div>
-                <div className="bg-[#081024]/60 border border-cyan-500/10 rounded-xl px-4 py-3 text-sm text-cyan-50 shadow-inner">
-                  Launch file manager and show system diagnostics.
-                </div>
-              </div>
+              ))}
             </div>
 
             {/* Waveform visualization */}
@@ -233,7 +325,7 @@ export default function App() {
                 {micPulse && <span className="absolute inset-0 rounded-full border-2 border-cyan-400 animate-[ping_1s_ease-out_infinite]" />}
               </button>
               <div className="flex-1 relative">
-                <input type="text" placeholder="Speak or type a command..."
+                <input ref={inputRef} type="text" placeholder="Speak or type a command..."
                   className="w-full rounded-xl border border-cyan-500/20 bg-[#03070a]/60 px-4 py-3 text-sm text-cyan-50 placeholder-cyan-700 focus:outline-none focus:border-cyan-400 focus:shadow-[0_0_0_3px_rgba(0,229,255,0.15)] transition-all backdrop-blur-md" />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-cyan-600">Press ENTER</span>
               </div>

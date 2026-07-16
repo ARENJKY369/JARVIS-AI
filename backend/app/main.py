@@ -274,6 +274,15 @@ def create_app() -> FastAPI:
                 """JARVIS voice console — hear and command JARVIS."""
                 return FileResponse(console_dir / "index.html")
 
+            @app.get("/console_hud", tags=["UI"], include_in_schema=False)
+            async def hud_console():
+                """New cinematic HUD console — holographic AI core interface."""
+                # Serve the React app entry for the new HUD
+                hud_path = Path(__file__).resolve().parents[2] / "frontend" / "index.html"
+                if hud_path.exists():
+                    return FileResponse(str(hud_path))
+                return FileResponse(str(console_dir / "index.html"))
+
             app.mount(
                 "/console-assets",
                 StaticFiles(directory=str(console_dir)),
